@@ -1,0 +1,19 @@
+# Run on each extra machine to push its Claude Code usage to a central WAMT server.
+# Create a token on the server first:  docker compose exec wamt wamt device add my-laptop
+#   WAMT_SERVER=https://wamt.example.com WAMT_TOKEN=wamt_xxx docker compose -f docker-compose.agent.yml up -d
+services:
+  agent:
+    image: ghcr.io/gerijacki/wherearemytokens:latest
+    restart: unless-stopped
+    environment:
+      WAMT_SERVER: ${WAMT_SERVER:?set WAMT_SERVER}
+      WAMT_TOKEN: ${WAMT_TOKEN:?set WAMT_TOKEN}
+      WAMT_CLAUDE_DATA_DIR: /data/claude
+      WAMT_AGENT_STATE: /state/agent-state.json
+    volumes:
+      - ${CLAUDE_PROJECTS_DIR:-~/.claude/projects}:/data/claude:ro
+      - agent-state:/state
+    command: ["wamt", "agent"]
+
+volumes:
+  agent-state:

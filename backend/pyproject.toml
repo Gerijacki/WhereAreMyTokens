@@ -1,0 +1,37 @@
+[project]
+name = "wamt"
+version = "0.1.0"
+description = "WhereAreMyTokens - self-hosted token analytics for Claude Code"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0.30",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.4",
+    "pyyaml>=6.0",
+    "alembic>=1.13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.6"]
+
+[project.scripts]
+wamt = "wamt.cli:main"
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["wamt*"]
+
+[tool.setuptools.package-data]
+wamt = ["pricing/*.yaml", "analytics/*.yaml", "migrations/script.py.mako", "migrations/versions/*.py"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

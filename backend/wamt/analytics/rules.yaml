@@ -1,0 +1,78 @@
+# Work-category rules. Each prompt ("turn") gets a score per category from:
+#   prompt:    regexes matched against the prompt text (case-insensitive). Score: `weight` once if any match.
+#   commands:  regexes matched against each shell command signature. Score: 1 per match, capped at 4.
+#   tools:     points per call of a tool, capped at 5 calls per tool.
+#   signals:   derived facts computed in code (see classify.py) with a weight each.
+# The highest score wins; ties go to the category listed first. Edit freely and set
+# WAMT_RULES_FILE to your copy, then POST /api/admin/reclassify.
+# Prompts are often written in English, Catalan or Spanish, so keywords cover all three.
+
+fallback: chat
+
+categories:
+  - name: debugging
+    weight: 4
+    prompt:
+      - '\b(bug|error|errors|fix|fixes|broken|crash\w*|exception|traceback|stack ?trace|fail\w*|falla\w*|arregl\w*|no funciona|not working|doesn.?t work|issue|regression|undefined|null pointer|500)\b'
+    signals: { tool_errors: 1.5, repeated_command_after_error: 2 }
+
+  - name: testing
+    weight: 3
+    prompt:
+      - '\b(tests?|testing|coverage|cobertura|unit|e2e|playwright|vitest|jest|pytest|prova\w*|spec)\b'
+    commands:
+      - '\b(test\w*|vitest|jest|pytest|playwright|phpunit|mocha|cypress|go test|cargo test)\b'
+    tools: {}
+
+  - name: coding
+    weight: 3
+    prompt:
+      - '\b(implement\w*|implementa\w*|add|afegeix|afegir|añade|crea|create|build|feature|funcionalitat|write|escriu|component|endpoint|refactor\w*|rename|migra\w*)\b'
+    tools: { Edit: 0.8, MultiEdit: 0.8, Write: 1.0, NotebookEdit: 0.8 }
+
+  - name: exploration
+    weight: 3
+    prompt:
+      - '\b(explain|explica|how does|com funciona|cómo funciona|analy[sz]e|analitza|analiza|understand|entendre|what is|què és|review the code|look at|mira|investiga|audit\w*)\b'
+    tools: { Read: 0.4, Grep: 0.5, Glob: 0.5, LS: 0.3 }
+    signals: { read_only: 2 }
+
+  - name: ops
+    weight: 3
+    prompt:
+      - '\b(deploy\w*|desplega\w*|push|commit|merge|release|docker|ci|pipeline|vercel|server|servidor|install|instal·la|upgrade|git)\b'
+    commands:
+      - '^(git (push|commit|merge|rebase|tag|pull|checkout|switch)|gh (pr|release|run|workflow)|docker|kubectl|helm|terraform|vercel|netlify|fly|pnpm (install|add)|npm (install|i)|pip install|uv (sync|add))'
+      - '\b(build|deploy|release)\b'
+
+  - name: planning
+    weight: 3
+    prompt:
+      - '\b(plan|planifica|design|disseny|diseño|architecture|arquitectura|propos\w*|proposta|ideas?|idees|roadmap|strategy|approach|defin\w*)\b'
+    tools: { ExitPlanMode: 3, AskUserQuestion: 1 }
+    signals: { plan_mode: 5 }
+
+  - name: research
+    weight: 3
+    prompt:
+      - '\b(search|busca|cerca|research|compare|compara|docs for|documentation for|latest|best practices|alternatives|alternatives)\b'
+    tools: { WebSearch: 2, WebFetch: 1.5 }
+
+  - name: review
+    weight: 3
+    prompt:
+      - '\b(review|revisa|code review|pull request|pr #?\d+|pr review|feedback|premortem|postmortem|valida)\b'
+    commands:
+      - '^gh pr (view|diff|review|checks)'
+      - '^git (diff|log|show)'
+
+  - name: docs
+    weight: 3
+    prompt:
+      - '\b(readme|docs?|document\w*|documenta\w*|changelog|comment\w*|guide|guia|tutorial|write-?up)\b'
+    signals: { markdown_edits: 1.5 }
+
+  - name: chat
+    weight: 1
+    prompt: []
+    signals: { no_tools: 1.5 }

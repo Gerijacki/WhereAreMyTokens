@@ -1,0 +1,44 @@
+# API list prices in USD per million tokens (Anthropic first-party API).
+# Used to compute what your subscription usage *would* cost on the API.
+# Prices change: edit this file or point WAMT_PRICING_FILE to your own copy,
+# then run `wamt reprice`.
+#
+# Defaults per model unless overridden:
+#   cache_write_5m = 1.25 x input, cache_write_1h = 2 x input, cache_read = 0.1 x input
+# `match` is a regex tested against the model id; first match wins.
+models:
+  - match: "^claude-fable-5-1"
+    input: 10.00
+    output: 50.00
+    cache_read: 0.25
+  - match: "^claude-mythos-5-1"
+    input: 10.00
+    output: 50.00
+    cache_read: 0.25
+  - match: "^claude-(fable|mythos)-5"
+    input: 10.00
+    output: 50.00
+    cache_read: 1.00
+  - match: "^claude-opus-5-5"
+    input: 4.00
+    output: 20.00
+    cache_read: 0.20
+  - match: "^claude-opus-(5|4-8|4-7|4-6)"
+    input: 5.00
+    output: 25.00
+  - match: "^claude-sonnet-5-5"
+    input: 2.00
+    output: 10.00
+    cache_read: 0.20
+  - match: "^claude-sonnet-5"
+    input: 2.00
+    output: 10.00
+  - match: "^claude-sonnet-4"
+    input: 3.00
+    output: 15.00
+  - match: "^claude-haiku-5-5"
+    input: 0.10
+    output: 0.50
+  - match: "^claude-haiku-4-5"
+    input: 1.00
+    output: 5.00

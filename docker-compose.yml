@@ -1,0 +1,36 @@
+services:
+  wamt:
+    build: .
+    image: ghcr.io/gerijacki/wherearemytokens:latest
+    restart: unless-stopped
+    ports:
+      - "${WAMT_PORT:-8787}:8787"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      WAMT_DATABASE_URL: postgresql+psycopg://wamt:${POSTGRES_PASSWORD:-wamt}@db:5432/wamt
+    volumes:
+      # Claude Code transcripts, read-only. On Windows use e.g. C:/Users/<you>/.claude/projects
+      - ${CLAUDE_PROJECTS_DIR:-~/.claude/projects}:/data/claude:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wamt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wamt}
+      POSTGRES_DB: wamt
+    volumes:
+      - wamt-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wamt -d wamt"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  wamt-db:
