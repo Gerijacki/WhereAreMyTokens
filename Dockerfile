@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Dashboard build ----
-FROM node:22-alpine AS web
+FROM node:25-alpine AS web
 WORKDIR /web
 RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml ./
