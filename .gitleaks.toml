@@ -1,0 +1,10 @@
+title = "WhereAreMyTokens gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake credentials used to test the redaction logic"
+paths = [
+  '''backend/tests/test_m4\.py''',
+]

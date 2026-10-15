@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: ruff check wamt tests
+      - run: pytest -q
+
+  postgres:
+    name: Backend on PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wamt
+          POSTGRES_PASSWORD: wamt
+          POSTGRES_DB: wamt
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U wamt" --health-interval 5s --health-timeout 3s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      WAMT_DATABASE_URL: postgresql+psycopg://wamt:wamt@localhost:5432/wamt
+      WAMT_CLAUDE_DATA_DIR: /tmp/demo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e .
+      - name: Migrate, ingest demo data and compute insights on Postgres
+        run: |
+          wamt demo --dir /tmp/demo
+          wamt ingest
+          wamt insights | tee /tmp/insights.txt
+          test "$(grep -c . /tmp/insights.txt)" -gt 5
+
+  web:
+    name: Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  docker:
+    name: Docker smoke test
+    runs-on: ubuntu-latest
+    needs: [backend, web]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the demo stack
+        run: docker compose -f docker-compose.demo.yml up -d --build
+      - name: Wait for the API and check the dashboards have data
+        run: |
+          for i in $(seq 1 60); do curl -fs http://localhost:8788/api/health && break; sleep 2; done
+          for i in $(seq 1 30); do
+            n=$(curl -fs http://localhost:8788/api/insights | python3 -c "import sys,json; print(len(json.load(sys.stdin)['items']))" || echo 0)
+            [ "$n" -gt 5 ] && break; sleep 2
+          done
+          echo "insights: $n"; [ "$n" -gt 5 ]
+          curl -fs "http://localhost:8788/api/overview?days=0" | python3 -c "import sys,json; t=json.load(sys.stdin)['totals']; assert t['api_calls'] > 500, t"
+          curl -fs http://localhost:8788/ | grep -q '<div id="root">'
+          curl -fs http://localhost:8788/metrics | grep -q wamt_tokens_total
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.demo.yml logs
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --redact --verbose
