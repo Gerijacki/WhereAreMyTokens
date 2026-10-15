@@ -1,0 +1,27 @@
+name: Insight idea
+description: A wasteful pattern WhereAreMyTokens should detect, and how to fix it
+labels: [insight, enhancement]
+body:
+  - type: textarea
+    id: pattern
+    attributes:
+      label: The pattern
+      description: What do you keep seeing in your sessions that burns tokens?
+      placeholder: "Claude re-runs the full test suite after every one-line edit..."
+    validations:
+      required: true
+  - type: textarea
+    id: detect
+    attributes:
+      label: How could it be detected?
+      description: Which transcript signals would reveal it (tools, commands, timing, token counts)?
+  - type: textarea
+    id: fix
+    attributes:
+      label: The fix
+      description: The skill, slash command, hook, settings or CLAUDE.md change that would avoid it.
+  - type: textarea
+    id: saving
+    attributes:
+      label: Estimated saving
+      description: Rough reasoning is fine, e.g. "avoids ~5 round trips per prompt".

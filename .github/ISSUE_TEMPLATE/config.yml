@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/Gerijacki/WhereAreMyTokens/discussions
+    about: Ask how to set something up or share how you use it.
+  - name: Security issue
+    url: https://github.com/Gerijacki/WhereAreMyTokens/security/advisories/new
+    about: Report vulnerabilities or privacy leaks privately.
