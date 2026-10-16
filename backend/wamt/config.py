@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     ingest_enabled: bool = True
     # Optional override of the bundled pricing table.
     pricing_file: Path | None = None
+    # Id of the subscription plan you pay for (see `plans` in pricing.yaml), e.g. "max5x".
+    plan: str | None = None
     # Timezone used to bucket daily charts.
     timezone: str = "UTC"
     static_dir: Path | None = None

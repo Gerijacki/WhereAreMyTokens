@@ -229,6 +229,9 @@ def _insight_out(i: Insight, projects: dict[int, str]) -> dict:
         "artifact": ({"kind": i.artifact_kind, "path": i.artifact_path, "content": i.artifact_content}
                      if i.artifact_content else None),
         "status": i.status, "stale": i.stale, "first_seen": i.first_seen, "updated_at": i.updated_at,
+        "done_at": i.done_at, "baseline_usd_month": i.baseline_usd_month,
+        "residual_usd_month": i.residual_usd_month, "realized_usd_month": i.realized_usd_month,
+        "measured_at": i.measured_at,
     }
 
 
@@ -238,7 +241,7 @@ def insights(db: DB, status: str = Query("open", pattern="^(open|dismissed|done|
     stmt = select(Insight)
     if status != "all":
         stmt = stmt.where(Insight.status == status)
-    if not include_stale:
+    if not include_stale and status != "done":  # a fixed pattern going stale is the goal; keep showing it
         stmt = stmt.where(Insight.stale.is_(False))
     if project_id is not None:
         stmt = stmt.where(Insight.project_id == project_id)
@@ -247,13 +250,18 @@ def insights(db: DB, status: str = Query("open", pattern="^(open|dismissed|done|
     rows = sorted(rows, key=lambda i: (sev.get(i.severity, 3), -i.est_usd_month))
     projects = dict(db.execute(select(Project.id, Project.name)).all())
     active = db.scalars(select(Insight).where(Insight.stale.is_(False))).all()
+    all_done = db.scalars(select(Insight).where(Insight.status == "done")).all()
     return {
         "refreshed_at": get_meta(db, "insights_refreshed_at"),
         "summary": {
             "open": sum(1 for i in active if i.status == "open"),
-            "done": sum(1 for i in active if i.status == "done"),
+            "done": len(all_done),
             "dismissed": sum(1 for i in active if i.status == "dismissed"),
             "open_usd_month": round(sum(i.est_usd_month for i in active if i.status == "open"), 2),
+            # Done insights keep counting after their pattern stops showing up (that's the point),
+            # so this sums over stale rows too.
+            "realized_usd_month": round(sum(i.realized_usd_month or 0.0 for i in all_done), 4),
+            "measuring": sum(1 for i in all_done if i.done_at is not None and i.measured_at is None),
         },
         "items": [_insight_out(i, projects) for i in rows],
     }
@@ -270,6 +278,13 @@ def update_insight(insight_id: str, body: InsightUpdate, db: DB):
     i = db.get(Insight, insight_id)
     if i is None:
         raise HTTPException(404, "Insight not found")
+    if body.status == "done" and i.status != "done":
+        # Freeze what the pattern cost when you fixed it; measure_done() compares later data with it.
+        i.done_at, i.baseline_usd_month = datetime.now(UTC), i.est_usd_month
+    elif body.status != "done":
+        i.done_at = i.baseline_usd_month = None
+    if body.status != "done" or i.measured_at is None:
+        i.residual_usd_month = i.realized_usd_month = i.measured_at = None
     i.status = body.status
     db.commit()
     return {"id": i.id, "status": i.status}

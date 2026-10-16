@@ -151,6 +151,24 @@ class Insight(Base):
     stale: Mapped[bool] = mapped_column(Boolean, default=False)
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Realized savings: est_usd_month frozen when marked done, then the pattern's cost measured
+    # again on the data recorded since (see insights/engine.py: measure_done).
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    baseline_usd_month: Mapped[float | None] = mapped_column(Float)
+    residual_usd_month: Mapped[float | None] = mapped_column(Float)
+    realized_usd_month: Mapped[float | None] = mapped_column(Float)
+    measured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Budget(Base):
+    """A spending limit on API-equivalent cost per day, week or month, globally or for one project."""
+
+    __tablename__ = "budgets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    period: Mapped[str] = mapped_column(String(8))  # day | week | month
+    limit_usd: Mapped[float] = mapped_column(Float)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Meta(Base):

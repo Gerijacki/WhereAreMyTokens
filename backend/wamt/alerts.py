@@ -3,6 +3,7 @@
 Rules (each fires once, remembered in the `meta` table):
 - the current 5-hour block is projected above WAMT_ALERT_BLOCK_FACTOR x your median block;
 - a new high-impact insight appears;
+- a budget reaches 80% of its limit, then again when it is exceeded (once per budget period);
 - a daily digest at WAMT_ALERT_DIGEST_HOUR (local time), if set.
 """
 
@@ -18,6 +19,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select
 
 from wamt.analytics.blocks import compute_limits
+from wamt.analytics.spend import WARN_RATIO, all_budgets
 from wamt.config import get_settings
 from wamt.db import ApiCall, Insight, get_meta, new_session, set_meta
 
@@ -86,7 +88,20 @@ def check(force: bool = False) -> list[str]:
             sent.append(title)
             set_meta(db, "alert_insights", json.dumps(sorted(known | {i.id for i in new})))
 
-        # 3. Daily digest
+        # 3. Budgets: one alert per level (warning, then over) and budget period
+        for b in all_budgets(db):
+            level = "over" if b["state"] == "over" else "warning" if b["ratio"] >= WARN_RATIO else None
+            key, meta = f"{b['period_start'].isoformat()}|{level}", f"alert_budget_{b['id']}"
+            if level is None or get_meta(db, meta) in (key, f"{b['period_start'].isoformat()}|over"):
+                continue
+            scope = f" for {b['project']}" if b["project"] else ""
+            title = f"{b['period'].capitalize()} budget{scope} " + ("exceeded" if level == "over" else "at 80%")
+            send(title, f"{_usd(b['spent_usd'])} of {_usd(b['limit_usd'])} spent this {b['period']} "
+                        f"(API-equivalent){scope}.")
+            set_meta(db, meta, key)
+            sent.append(title)
+
+        # 4. Daily digest
         if s.alert_digest_hour is not None:
             now = datetime.now(ZoneInfo(s.timezone))
             today = now.date().isoformat()

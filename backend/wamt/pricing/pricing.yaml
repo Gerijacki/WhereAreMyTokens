@@ -42,3 +42,17 @@ models:
   - match: "^claude-haiku-4-5"
     input: 1.00
     output: 5.00
+
+# Claude subscription plans in USD per month, compared with your API-equivalent cost in the
+# "Plan value" card. Set WAMT_PLAN to the id of the plan you pay for. Check the current prices
+# at https://claude.com/pricing and edit them here if they change.
+plans:
+  - id: pro
+    name: Pro
+    usd_month: 20
+  - id: max5x
+    name: Max 5x
+    usd_month: 100
+  - id: max20x
+    name: Max 20x
+    usd_month: 200

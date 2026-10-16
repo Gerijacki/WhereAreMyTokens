@@ -23,10 +23,21 @@ class ModelPrice:
     cache_read: float
 
 
+@dataclass(frozen=True)
+class Plan:
+    id: str
+    name: str
+    usd_month: float
+
+
+def _read(path: str | None) -> dict:
+    file = Path(path) if path else (get_settings().pricing_file or BUNDLED)
+    return yaml.safe_load(file.read_text(encoding="utf-8"))
+
+
 @lru_cache
 def load_prices(path: str | None = None) -> tuple[ModelPrice, ...]:
-    file = Path(path) if path else (get_settings().pricing_file or BUNDLED)
-    data = yaml.safe_load(file.read_text(encoding="utf-8"))
+    data = _read(path)
     prices = []
     for m in data["models"]:
         inp = float(m["input"])
@@ -41,6 +52,14 @@ def load_prices(path: str | None = None) -> tuple[ModelPrice, ...]:
             )
         )
     return tuple(prices)
+
+
+@lru_cache
+def load_plans(path: str | None = None) -> tuple[Plan, ...]:
+    """Subscription plans, cheapest first. A custom pricing file without `plans` keeps the bundled ones."""
+    plans = _read(path).get("plans") or yaml.safe_load(BUNDLED.read_text(encoding="utf-8"))["plans"]
+    return tuple(sorted((Plan(id=str(p["id"]), name=str(p["name"]), usd_month=float(p["usd_month"]))
+                         for p in plans), key=lambda p: p.usd_month))
 
 
 def price_for(model: str | None) -> ModelPrice | None:

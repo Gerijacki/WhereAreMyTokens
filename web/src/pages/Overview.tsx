@@ -5,6 +5,7 @@ import { get, type Overview as OverviewData, type TopTurn } from "../api";
 import { CategoryChip } from "../categories";
 import { Chart, axisStyle, baseOption, type Theme } from "../components/Chart";
 import { CategoryBreakdown, TopInsights } from "../components/OverviewExtras";
+import { Budgets, PlanValue } from "../components/Spend";
 import { TelemetryCard } from "../components/Telemetry";
 import { Card, Empty, ErrorBox, Loading, Stat } from "../components/ui";
 import { FilterBar, useFilters } from "../filters";
@@ -128,6 +129,11 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
         <Stat label="Cache hit ratio" value={pct(t.cache_hit_ratio)} hint="cache reads ÷ prompt tokens" />
         <Stat label="Prompts" value={t.prompts.toLocaleString()}
           hint={`${t.sessions} sessions · ${usd(t.prompts ? t.cost_usd / t.prompts : 0)} per prompt`} />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+        <PlanValue />
+        <Budgets />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">

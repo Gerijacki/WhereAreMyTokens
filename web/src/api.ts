@@ -163,15 +163,46 @@ export interface Insight {
   artifact: { kind: string; path: string | null; content: string } | null;
   status: "open" | "dismissed" | "done";
   stale: boolean;
+  done_at: string | null;
+  baseline_usd_month: number | null;
+  residual_usd_month: number | null;
+  realized_usd_month: number | null;
+  measured_at: string | null;
 }
 
 export interface InsightsData {
   refreshed_at: string | null;
-  summary: { open: number; done: number; dismissed: number; open_usd_month: number };
+  summary: { open: number; done: number; dismissed: number; open_usd_month: number; realized_usd_month: number;
+    measuring: number };
   items: Insight[];
 }
 
-export async function send<T>(method: "PATCH" | "POST", path: string, body?: unknown): Promise<T> {
+export interface PlanData {
+  current_plan: string | null;
+  monthly_usd: number;
+  trailing_30d_usd: number;
+  history_days: number;
+  plans: { id: string; name: string; usd_month: number; value_multiple: number | null; api_cheaper: boolean }[];
+  months: { month: string; cost_usd: number; partial: boolean; projected_usd: number | null }[];
+}
+
+export type BudgetPeriod = "day" | "week" | "month";
+
+export interface BudgetRow {
+  id: number;
+  period: BudgetPeriod;
+  limit_usd: number;
+  project_id: number | null;
+  project: string | null;
+  period_start: string;
+  period_end: string;
+  spent_usd: number;
+  ratio: number | null;
+  projected_usd: number | null;
+  state: "ok" | "warning" | "over";
+}
+
+export async function send<T>(method: "PATCH" | "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },

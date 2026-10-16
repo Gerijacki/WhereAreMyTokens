@@ -99,7 +99,8 @@ export default function Insights() {
               hint="API-equivalent, open insights, rough estimate" />
             <Stat label="Open" value={String(q.data.summary.open)}
               hint={`${q.data.items.filter((i) => i.severity === "high").length} high impact`} />
-            <Stat label="Done" value={String(q.data.summary.done)} hint={`${q.data.summary.dismissed} dismissed`} />
+            <Stat label="Realized savings" value={`${usd(q.data.summary.realized_usd_month)}/mo`}
+              hint={`${q.data.summary.done} done${q.data.summary.measuring ? ` · ${q.data.summary.measuring} measuring` : ""} · ${q.data.summary.dismissed} dismissed`} />
             <Stat label="Last analysis" value={q.data.refreshed_at ? dateTime(q.data.refreshed_at) : "–"}
               hint="Re-runs every 10 min while you work" />
           </div>
@@ -127,6 +128,30 @@ function Severity({ level }: { level: Insight["severity"] }) {
       <span aria-hidden>{map.icon}</span>
       <span style={{ color: "var(--text-secondary)" }}>{map.label}</span>
     </span>
+  );
+}
+
+/** What fixing the pattern actually saved, measured on the data recorded since it was marked done. */
+function Realized({ insight: i }: { insight: Insight }) {
+  const estimate = i.baseline_usd_month ?? i.est_usd_month;
+  if (i.realized_usd_month === null) {
+    return (
+      <div className="text-right shrink-0" title="Realized savings need a week of data after you mark an insight done">
+        <div className="text-sm font-semibold">Measuring…</div>
+        <div className="text-xs muted">done {dateTime(i.done_at)}</div>
+        <div className="text-xs muted num">estimated {usd(estimate)}/mo</div>
+      </div>
+    );
+  }
+  return (
+    <div className="text-right shrink-0"
+      title="Compared with the estimate when you marked it done, adjusted for how much you used Claude Code since">
+      <div className="num text-lg font-semibold" style={{ color: "var(--good)" }}>{usd(i.realized_usd_month)}/mo</div>
+      <div className="text-xs muted">realized saving</div>
+      <div className="text-xs muted num">
+        estimated {usd(estimate)}/mo{i.residual_usd_month ? ` · still ${usd(i.residual_usd_month)}/mo` : ""}
+      </div>
+    </div>
   );
 }
 
@@ -182,13 +207,15 @@ export function InsightCard({ insight: i, compact = false, defaultOpen = false }
           <h3 className="text-sm font-semibold break-words">{i.title}</h3>
           {!compact && <p className="text-sm secondary mt-1.5 max-w-[90ch]">{i.summary}</p>}
         </div>
-        <div className="text-right shrink-0">
-          <div className="num text-lg font-semibold">{i.est_usd_month > 0 ? `${usd(i.est_usd_month)}/mo` : "–"}</div>
-          <div className="text-xs muted">
-            {i.est_usd_month > 0 ? "estimated saving" : "saves permission prompts"}
+        {i.status === "done" && i.done_at ? <Realized insight={i} /> : (
+          <div className="text-right shrink-0">
+            <div className="num text-lg font-semibold">{i.est_usd_month > 0 ? `${usd(i.est_usd_month)}/mo` : "–"}</div>
+            <div className="text-xs muted">
+              {i.est_usd_month > 0 ? "estimated saving" : "saves permission prompts"}
+            </div>
+            {i.est_tokens > 0 && <div className="text-xs muted num">{tokens(i.est_tokens)} tokens</div>}
           </div>
-          {i.est_tokens > 0 && <div className="text-xs muted num">{tokens(i.est_tokens)} tokens</div>}
-        </div>
+        )}
       </div>
 
       {!compact && (

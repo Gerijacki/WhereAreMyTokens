@@ -13,6 +13,7 @@ from wamt.api.ingest_api import router as ingest_router
 from wamt.api.metrics import router as metrics_router
 from wamt.api.otel import router as otel_router
 from wamt.api.routes import router
+from wamt.api.spend import router as spend_router
 from wamt.auth import AuthMiddleware
 from wamt.auth import router as auth_router
 from wamt.collector.ingest import run_forever
@@ -39,7 +40,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="WhereAreMyTokens", version=__version__, lifespan=lifespan)
 app.add_middleware(AuthMiddleware)
-for r in (auth_router, router, analytics_router, ingest_router, otel_router, metrics_router):
+for r in (auth_router, router, analytics_router, spend_router, ingest_router, otel_router, metrics_router):
     app.include_router(r)
 
 
