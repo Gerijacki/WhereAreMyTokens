@@ -13,6 +13,8 @@ Self-hosted token analytics for Claude Code subscriptions. Everything user-facin
 - `backend/wamt/insights/`: `data.py` loads a snapshot, `miners.py` has one generator per insight type,
   `artifacts.py` holds the ready-to-paste file templates, `engine.py` upserts findings and keeps their status.
 - `backend/wamt/api/analytics.py`: categories, tools, cache, limits and insights endpoints.
+- `backend/wamt/preferences.py` + `api/settings.py`: display preferences (currency, rate, plan, billing) saved in
+  `meta`, devices API. `auth.py` also handles the UI-set password. `api/export.py`: CSV/JSON exports.
 - `backend/wamt/analytics/spend.py` + `api/spend.py`: plan value (`/api/plan`, plan prices in `pricing.yaml`) and
   budgets (`/api/budgets`, alerted in `alerts.py`). Realized savings of done insights: `insights/engine.py: measure_done`.
 - M4 / self-hosting: `agent.py` + `api/ingest_api.py` + `devices.py` (multi-device push with device tokens),
@@ -41,6 +43,9 @@ docker compose up -d --build  # full stack on :8787
 - Bump `PARSER_VERSION` (ingest.py) when parsing changes: every transcript is re-read, non-destructively. Never wipe tables to re-ingest, because Claude Code deletes old transcripts and the DB may be the only copy left.
 - Bump `ENRICH_VERSION` (enrich.py) when categorization, signatures or cache detection change.
 - e2e specs share one database and run serially: undo whatever a spec creates.
+- The API serves amounts in USD; only the dashboard converts them (`money()` in `web/src/format.ts`, `toUsd()` for
+  input). Never store converted amounts.
+- An explicitly set `WAMT_*` environment variable beats the value saved in Settings, and locks it in the UI.
 - Insight ids hash `type + key`. Keep keys stable, or users lose the done/dismissed status of their insights.
 - Savings are estimates. State the assumption in the finding's summary or in the miner's docstring.
 - Chart colours come from the CSS tokens in `web/src/index.css` (validated palette, separate dark steps). Model colours are keyed by model, never by rank (`modelColors.ts`).

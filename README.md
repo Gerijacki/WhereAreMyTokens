@@ -62,7 +62,7 @@ docker compose -f docker-compose.demo.yml up --build    # http://localhost:8788
 | | |
 |---|---|
 | **API-equivalent cost** | Every response priced per model and token kind: input, output, 5-minute and 1-hour cache writes, cache reads. The prices live in an editable [`pricing.yaml`](backend/wamt/pricing/pricing.yaml). |
-| **Plan value** | The last 30 days at API prices against the price of Pro, Max 5x and Max 20x, month by month: how many times over your plan pays for itself, or whether pay-as-you-go would have been cheaper. |
+| **Plan value** | The last 30 days at API prices against the price of Pro, Max 5x and Max 20x (monthly or annual billing), month by month: how many times over your plan pays for itself, or whether pay-as-you-go would have been cheaper. |
 | **Budgets** | Daily, weekly or monthly limits on API-equivalent spend, overall or per project, with a projection to the end of the period and alerts at 80% and 100%. |
 | **Work categories** | Each prompt is classified as coding, debugging, exploration, testing, ops, planning, research, review, docs or chat, from its wording (English/Catalan/Spanish), tools, shell commands and signals such as plan mode or retries after errors. You can override any prompt; your choice sticks. |
 | **5-hour blocks & burn rate** | Usage grouped the way subscription windows work, with the current burn rate, the projected block cost and your own historical median and peak. |
@@ -70,6 +70,8 @@ docker compose -f docker-compose.demo.yml up --build    # http://localhost:8788
 | **Tools** | Which tools and normalized shell commands run most, fail most and push the most output into the context. |
 | **Sessions** | Replay every session prompt by prompt: cost, tokens, tools, category, compactions and rebuilds. |
 | **Insights** | Ten detectors that find wasted tokens and give you a ready-to-paste fix (see below), and the savings each fix actually delivered once you apply it. |
+| **Settings** | Light, dark or system theme; euros or dollars (at a rate you set); your plan and billing; the dashboard password; agent devices; all from the UI. |
+| **Export** | Sessions, prompts and daily costs per project and model as CSV or JSON, for billing clients or your own analysis. |
 | **Self-hosting** | Multi-device agent, optional password or reverse-proxy auth, ntfy/Discord/Slack alerts, Prometheus `/metrics`, OpenTelemetry receiver, privacy mode. |
 
 <table>
@@ -149,9 +151,13 @@ Or run it with Docker using [`docker-compose.agent.yml`](docker-compose.agent.ym
 
 ### Access control
 
-- `WAMT_AUTH_PASSWORD`: a login page with a signed session cookie.
+- **A dashboard password**, set in *Settings → Security* (stored as a salted scrypt hash) or with `WAMT_AUTH_PASSWORD`, which takes precedence and can't be changed from the UI. You get a login page and a signed session cookie; changing or removing the password signs every other browser out.
 - `WAMT_TRUST_PROXY_AUTH_HEADER=Remote-User`: trust Authelia, oauth2-proxy, Cloudflare Access and similar.
-- Agents and OpenTelemetry authenticate with device tokens. `/metrics` can require `WAMT_METRICS_TOKEN`.
+- Agents and OpenTelemetry authenticate with device tokens, which you can create and revoke in *Settings → Devices* or with `wamt device`. `/metrics` can require `WAMT_METRICS_TOKEN`.
+
+### Settings and environment variables
+
+Everything in *Settings* except the theme is saved on the server, for everyone using the dashboard. Environment variables always win: a setting that comes from one (for example `WAMT_CURRENCY`) shows as locked in the UI. The API serves every amount in US dollars and the dashboard converts it for display, so switching currency never rewrites your data. WAMT doesn't look exchange rates up online: set `WAMT_EUR_PER_USD` or edit the rate in Settings.
 
 ### Alerts
 
@@ -186,7 +192,9 @@ Claude Code deletes transcripts older than `cleanupPeriodDays` (30 by default). 
 
 **Is this the real amount I pay?** No. It's what the same usage would cost at API list prices, which is the useful number for comparing plans, projects and habits. Subscription limits aren't published, so 5-hour blocks are compared with your own history.
 
-**Does "Plan value" tell me whether I'd fit in a cheaper plan?** No. Plan usage limits aren't published in tokens, so it compares prices only. Set `WAMT_PLAN` (`pro`, `max5x` or `max20x`) to preselect your plan, and edit the `plans` section of [`pricing.yaml`](backend/wamt/pricing/pricing.yaml) if the prices change.
+**Does "Plan value" tell me whether I'd fit in a cheaper plan?** No. Plan usage limits aren't published in tokens, so it compares prices only. Pick your plan and billing in Settings (or with `WAMT_PLAN` and `WAMT_BILLING`), and edit the `plans` section of [`pricing.yaml`](backend/wamt/pricing/pricing.yaml) if the prices change. It lists prices in euros and dollars.
+
+**Can I see the costs in euros?** Yes. Euros are the default display currency; switch to dollars in Settings or with `WAMT_CURRENCY=USD`. Exports always include the USD cost, plus a `cost_eur` column when the currency is EUR.
 
 **How is this different from `ccusage` and other CLI tools?** CLI tools are great for a quick total in the terminal. WhereAreMyTokens is a long-running dashboard: it keeps history beyond Claude Code's cleanup, merges several machines, classifies the work, explains cache behavior, and suggests concrete automations with the files to make them.
 

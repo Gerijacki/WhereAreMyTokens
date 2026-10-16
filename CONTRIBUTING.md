@@ -49,7 +49,8 @@ To get realistic data without your own, run `wamt demo --dir /tmp/demo` and then
 | Handle a new transcript format quirk | `backend/wamt/collector/parser.py`, plus a test, and bump `PARSER_VERSION` in `ingest.py` |
 | Add an insight detector | A generator in `backend/wamt/insights/miners.py` added to `MINERS`, a planted pattern in `wamt/demo.py`, and a test |
 | Add a migration | `alembic revision --autogenerate` against a database at head (see `wamt/migrations/env.py`) |
-| Update plan prices | The `plans` section of `backend/wamt/pricing/pricing.yaml` |
+| Update plan prices | The `plans` section of `backend/wamt/pricing/pricing.yaml` (per currency and billing period) |
+| Add a setting | `wamt/preferences.py` (`FIELDS`, validation), a field in `config.py`, a control in `web/src/pages/Settings.tsx` |
 
 ## Pull requests
 

@@ -2,6 +2,24 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Settings page**: theme, currency and exchange rate, plan and billing, dashboard password, devices and exports, in one place. Environment variables still win, and lock the matching field.
+- **Themes**: light, dark or system, from the header or Settings, remembered per browser and applied before the first paint.
+- **Dashboard password from the UI**, stored as a salted scrypt hash. Changing or removing it signs every other browser out. A *Log out* button appears when a password is set.
+- **Euros**: every amount can be shown in EUR (the new default) or USD, at a rate you set (`WAMT_CURRENCY`, `WAMT_EUR_PER_USD`). The API keeps serving USD.
+- **Plan prices per currency and billing period**: Pro €18/$20 monthly or €15/$17 annual, Max 5x €90/$100, Max 20x €180/$200 (`WAMT_BILLING`).
+- **Devices in the UI**: create agent tokens (shown once, with the `wamt agent` command to run) and revoke them.
+- **Exports**: `/api/export/{sessions|prompts|daily}.{csv|json}`, from Settings or the Sessions page.
+
+### Changed
+
+- The plan chosen in *Plan value* is saved on the server instead of in the browser.
+- Text, number and password fields share the dashboard's input style, with visible focus and disabled states.
+- The `plans` section of `pricing.yaml` lists `prices` per currency and billing period. Custom files with the 0.2 `usd_month` format still work.
+
 ## [0.2.0] - 2026-10-16
 
 ### Added
