@@ -6,3 +6,9 @@ web/dist
 .git
 .env
 backend/tests
+.dev
+web/e2e/.data
+web/test-results
+web/playwright-report
+docs
+.playwright-mcp

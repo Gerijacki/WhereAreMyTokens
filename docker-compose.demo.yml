@@ -1,13 +1,10 @@
 # Try WhereAreMyTokens with synthetic data - nothing from your machine is read.
 #   docker compose -f docker-compose.demo.yml up --build
-# then open http://localhost:8788
+# then open http://localhost:8788. Without cloning the repo:
+#   docker run --rm -p 8788:8787 ghcr.io/gerijacki/wherearemytokens demo
 services:
   demo:
     build: .
     ports:
       - "${WAMT_DEMO_PORT:-8788}:8787"
-    environment:
-      WAMT_DATABASE_URL: sqlite:////tmp/wamt-demo.db
-      WAMT_CLAUDE_DATA_DIR: /tmp/demo-data
-      WAMT_SOURCE_NAME: demo
-    command: ["sh", "-c", "wamt demo --dir /tmp/demo-data && exec wamt serve --host 0.0.0.0 --port 8787"]
+    command: ["demo"]
