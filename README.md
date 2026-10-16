@@ -28,6 +28,7 @@ Self-hosted usage analytics for Claude Code Pro/Max subscriptions. One `docker c
 A Claude Code subscription has no per-token bill, so it's hard to answer simple questions:
 
 - How much would this month have cost on the API? Is the Max plan worth it?
+- Am I on track to stay under the budget I set myself, overall or for one client project?
 - Which projects, sessions and prompts burn the most?
 - Is the time going to coding, debugging, or exploring the same code over and over?
 - Why did a 5-hour window run out so fast?
@@ -61,12 +62,14 @@ docker compose -f docker-compose.demo.yml up --build    # http://localhost:8788
 | | |
 |---|---|
 | **API-equivalent cost** | Every response priced per model and token kind: input, output, 5-minute and 1-hour cache writes, cache reads. The prices live in an editable [`pricing.yaml`](backend/wamt/pricing/pricing.yaml). |
+| **Plan value** | The last 30 days at API prices against the price of Pro, Max 5x and Max 20x, month by month: how many times over your plan pays for itself, or whether pay-as-you-go would have been cheaper. |
+| **Budgets** | Daily, weekly or monthly limits on API-equivalent spend, overall or per project, with a projection to the end of the period and alerts at 80% and 100%. |
 | **Work categories** | Each prompt is classified as coding, debugging, exploration, testing, ops, planning, research, review, docs or chat, from its wording (English/Catalan/Spanish), tools, shell commands and signals such as plan mode or retries after errors. You can override any prompt; your choice sticks. |
 | **5-hour blocks & burn rate** | Usage grouped the way subscription windows work, with the current burn rate, the projected block cost and your own historical median and peak. |
 | **Cache analytics** | Hit ratio, savings from caching, and every **cache rebuild** with its cause: idle past the TTL, compaction, model switch or a changed prompt prefix. Also shows which sessions carry the biggest context. |
 | **Tools** | Which tools and normalized shell commands run most, fail most and push the most output into the context. |
 | **Sessions** | Replay every session prompt by prompt: cost, tokens, tools, category, compactions and rebuilds. |
-| **Insights** | Ten detectors that find wasted tokens and give you a ready-to-paste fix (see below). |
+| **Insights** | Ten detectors that find wasted tokens and give you a ready-to-paste fix (see below), and the savings each fix actually delivered once you apply it. |
 | **Self-hosting** | Multi-device agent, optional password or reverse-proxy auth, ntfy/Discord/Slack alerts, Prometheus `/metrics`, OpenTelemetry receiver, privacy mode. |
 
 <table>
@@ -103,6 +106,10 @@ The part that pays for itself. Every insight shows the evidence (links to the ex
 | **Permissions** | Frequent read-only commands that need approval | A `permissions.allow` list for `settings.json` |
 
 Savings are estimates. Most are measured in avoided model round trips: in Claude Code every tool call is followed by another call that re-reads the whole context. Each detector states its assumption.
+
+### Realized savings
+
+When you mark an insight **done**, its estimate is frozen. After a week, the detectors run again on the data recorded since then, and the insight shows what the fix actually saved per month: the frozen estimate, scaled by how much you've used Claude Code since (so a quiet week doesn't count as savings), minus whatever cost the pattern still causes. The Insights page adds them up in **Realized savings**.
 
 ## How it works
 
@@ -152,6 +159,7 @@ Set `WAMT_ALERT_URL` to an [ntfy](https://ntfy.sh) topic, a Discord or Slack web
 
 - a warning when the current 5-hour block is heading above `WAMT_ALERT_BLOCK_FACTOR` × your median block;
 - a notification for every new high-impact insight;
+- a notification when a budget reaches 80% of its limit, and another when it's exceeded (once per period);
 - an optional daily digest at `WAMT_ALERT_DIGEST_HOUR`.
 
 Test it with `docker compose exec wamt wamt test-alert`.
@@ -178,6 +186,8 @@ Claude Code deletes transcripts older than `cleanupPeriodDays` (30 by default). 
 
 **Is this the real amount I pay?** No. It's what the same usage would cost at API list prices, which is the useful number for comparing plans, projects and habits. Subscription limits aren't published, so 5-hour blocks are compared with your own history.
 
+**Does "Plan value" tell me whether I'd fit in a cheaper plan?** No. Plan usage limits aren't published in tokens, so it compares prices only. Set `WAMT_PLAN` (`pro`, `max5x` or `max20x`) to preselect your plan, and edit the `plans` section of [`pricing.yaml`](backend/wamt/pricing/pricing.yaml) if the prices change.
+
 **How is this different from `ccusage` and other CLI tools?** CLI tools are great for a quick total in the terminal. WhereAreMyTokens is a long-running dashboard: it keeps history beyond Claude Code's cleanup, merges several machines, classifies the work, explains cache behavior, and suggests concrete automations with the files to make them.
 
 **Does it work with the API, Bedrock or Vertex instead of a subscription?** Yes. It reads the same transcripts. With API billing the cost column is close to your real bill.
@@ -186,12 +196,26 @@ Claude Code deletes transcripts older than `cleanupPeriodDays` (30 by default). 
 
 ## Development
 
+On Linux and macOS the `Makefile` wraps the usual steps (Python 3.12+, [uv](https://docs.astral.sh/uv/), Node 22+ and pnpm):
+
+```bash
+make setup      # backend venv + web dependencies
+make dev-api    # demo data in .dev/ and the API on :8787 (SQLite)
+make dev-web    # http://localhost:5173, proxies /api to :8787
+make check      # pytest, ruff, Vitest and the production build
+make e2e        # Playwright end-to-end tests against the real backend on demo data
+```
+
+Or by hand:
+
 ```bash
 cd backend && python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q && .venv/bin/ruff check wamt tests
 .venv/bin/wamt demo --dir /tmp/demo && WAMT_CLAUDE_DATA_DIR=/tmp/demo .venv/bin/wamt serve   # API on :8787 (SQLite)
 
 cd web && pnpm install && pnpm dev     # http://localhost:5173, proxies /api to :8787
+pnpm test                              # unit tests (Vitest)
+pnpm exec playwright install chromium && pnpm test:e2e   # end-to-end tests
 ```
 
 CLI commands:
@@ -217,7 +241,7 @@ Architecture notes for contributors are in [CLAUDE.md](CLAUDE.md), and the contr
 - [x] Ten insight detectors with ready-to-paste fixes
 - [x] Multi-device agent, auth, alerts, OpenTelemetry, Prometheus, privacy mode, Alembic migrations
 - [ ] Optional LLM classifier (Haiku or local Ollama) for ambiguous prompts
-- [ ] Per-project budgets and plan comparison (Pro vs Max vs API)
+- [x] Budgets with alerts, plan comparison (Pro vs Max vs API) and realized savings
 - [ ] Weekly report email and shareable read-only links
 
 Ideas and insight detectors are very welcome. Open an issue with the *Insight idea* template.

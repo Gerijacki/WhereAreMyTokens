@@ -13,17 +13,22 @@ Self-hosted token analytics for Claude Code subscriptions. Everything user-facin
 - `backend/wamt/insights/`: `data.py` loads a snapshot, `miners.py` has one generator per insight type,
   `artifacts.py` holds the ready-to-paste file templates, `engine.py` upserts findings and keeps their status.
 - `backend/wamt/api/analytics.py`: categories, tools, cache, limits and insights endpoints.
+- `backend/wamt/analytics/spend.py` + `api/spend.py`: plan value (`/api/plan`, plan prices in `pricing.yaml`) and
+  budgets (`/api/budgets`, alerted in `alerts.py`). Realized savings of done insights: `insights/engine.py: measure_done`.
 - M4 / self-hosting: `agent.py` + `api/ingest_api.py` + `devices.py` (multi-device push with device tokens),
   `collector/redact.py` (secret masking, applied in the parser), `auth.py` (cookie/proxy auth middleware),
   `alerts.py`, `api/metrics.py` (Prometheus), `api/otel.py` (OTLP/JSON receiver), `analytics/blocks.py` (5h blocks),
   `demo.py` (synthetic transcripts for demos, screenshots and tests).
 - `backend/wamt/migrations/`: Alembic, run programmatically by `db.migrate()` at startup.
 - `web/`: React + Vite + TS + TanStack Query + ECharts (tree-shaken, SVG renderer) + Tailwind v4.
+  Unit tests: Vitest, `src/**/*.test.ts`. End-to-end: Playwright in `web/e2e/` against the real backend on demo data.
 
 ## Commands
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q && .venv/Scripts/ruff check wamt tests
-cd web && pnpm build          # tsc + vite
+cd backend && .venv/Scripts/python -m pytest -q && .venv/Scripts/ruff check wamt tests   # Linux/macOS: .venv/bin/, or `make test lint`
+cd web && pnpm build && pnpm test   # tsc + vite, Vitest
+cd web && pnpm test:e2e       # Playwright; needs backend/.venv and `pnpm exec playwright install chromium`
+make check e2e                # all of the above (Linux/macOS)
 docker compose up -d --build  # full stack on :8787
 ```
 
@@ -35,6 +40,7 @@ docker compose up -d --build  # full stack on :8787
 - Schema changes need an Alembic revision in `wamt/migrations/versions/`. Generate it by autogenerating against a DB at head (see `env.py`). Databases from before Alembic are completed and stamped `0001` by `db.migrate()`.
 - Bump `PARSER_VERSION` (ingest.py) when parsing changes: every transcript is re-read, non-destructively. Never wipe tables to re-ingest, because Claude Code deletes old transcripts and the DB may be the only copy left.
 - Bump `ENRICH_VERSION` (enrich.py) when categorization, signatures or cache detection change.
+- e2e specs share one database and run serially: undo whatever a spec creates.
 - Insight ids hash `type + key`. Keep keys stable, or users lose the done/dismissed status of their insights.
 - Savings are estimates. State the assumption in the finding's summary or in the miner's docstring.
 - Chart colours come from the CSS tokens in `web/src/index.css` (validated palette, separate dark steps). Model colours are keyed by model, never by rank (`modelColors.ts`).

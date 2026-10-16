@@ -2,6 +2,24 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Plan value**: the last 30 days at API prices against each subscription plan's price, plus a monthly chart. Plan prices live in the new `plans` section of `pricing.yaml`; `WAMT_PLAN` preselects yours.
+- **Budgets**: daily, weekly or monthly limits on API-equivalent spend, overall or per project, with a projection to the end of the period and alerts at 80% and 100%.
+- **Realized savings**: insights marked done are measured again after a week, and show what the fix actually saved, adjusted for how much you used Claude Code since.
+- End-to-end tests with Playwright against the real backend on demo data, unit tests for the dashboard with Vitest, and a CI job for both.
+- A `Makefile` for local development on Linux and macOS.
+
+### Changed
+
+- The *Done* insights tab also lists insights whose pattern is no longer detected, since that's what a successful fix looks like.
+
+### Migrations
+
+- `0003` adds the `budgets` table and the realized-savings columns of `insights`.
+
 ## [0.1.0] - 2026-10-15
 
 ### Added
