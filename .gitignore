@@ -10,3 +10,8 @@ web/dist/
 *.tsbuildinfo
 .pytest_cache/
 .ruff_cache/
+.dev/
+.playwright-mcp/
+web/e2e/.data/
+test-results/
+playwright-report/
