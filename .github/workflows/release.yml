@@ -13,6 +13,7 @@ jobs:
   image:
     name: Publish image to GHCR
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # a normal multi-arch build takes ~7 min; fail fast if emulation hangs
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4
