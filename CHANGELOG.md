@@ -2,7 +2,9 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-16
+
+> **Heads-up:** amounts are now shown in **euros by default**. To keep dollars, switch to USD in *Settings* or set `WAMT_CURRENCY=USD`. Set your exchange rate there too (`WAMT_EUR_PER_USD`, default 0.86): WAMT never looks it up online. Stored data is unchanged; the API still serves USD.
 
 ### Added
 
