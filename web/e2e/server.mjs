@@ -27,7 +27,6 @@ const env = {
   WAMT_DATABASE_URL: `sqlite:///${join(data, "wamt.db")}`,
   WAMT_STATIC_DIR: join(web, "dist"),
   WAMT_INGEST_ENABLED: "false",
-  WAMT_PLAN: "max5x",
   WAMT_TIMEZONE: "UTC",
   ...(values.password ? { WAMT_AUTH_PASSWORD: values.password, WAMT_SECRET_KEY: "e2e-only" } : {}),
 };
