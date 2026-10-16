@@ -27,6 +27,7 @@ def env(monkeypatch, tmp_path):
             monkeypatch.setenv(f"WAMT_{k.upper()}", str(v))
         get_settings.cache_clear()
         auth.secret_key.cache_clear()
+        auth.stored_hash.cache_clear()
 
     monkeypatch.setenv("WAMT_INGEST_ENABLED", "false")
     set_env()
@@ -34,6 +35,7 @@ def env(monkeypatch, tmp_path):
     yield set_env
     get_settings.cache_clear()
     auth.secret_key.cache_clear()
+    auth.stored_hash.cache_clear()
 
 
 def client():
@@ -131,7 +133,8 @@ def test_password_auth(env):
     c = client()
     assert c.get("/api/health").status_code == 200
     assert c.get("/api/overview").status_code == 401
-    assert c.get("/api/auth/status").json() == {"required": True, "authenticated": False}
+    assert c.get("/api/auth/status").json() == {"required": True, "authenticated": False, "source": "env",
+                                                 "proxy_header": None}
     assert c.post("/api/auth/login", json={"password": "wrong"}).status_code == 401
     assert c.post("/api/auth/login", json={"password": "s3cret"}).status_code == 200
     assert c.get("/api/overview").status_code == 200

@@ -19,6 +19,7 @@ from wamt.insights.engine import refresh
 def db(monkeypatch, tmp_path):
     monkeypatch.setenv("WAMT_INGEST_ENABLED", "false")
     monkeypatch.setenv("WAMT_PLAN", "max5x")
+    monkeypatch.setenv("WAMT_CURRENCY", "USD")  # plan prices in USD; EUR is covered in test_settings.py
     get_settings.cache_clear()
     init_engine(f"sqlite:///{tmp_path / 'spend.db'}")
     with new_session() as s:

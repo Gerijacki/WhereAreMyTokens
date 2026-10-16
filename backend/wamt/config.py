@@ -18,8 +18,12 @@ class Settings(BaseSettings):
     ingest_enabled: bool = True
     # Optional override of the bundled pricing table.
     pricing_file: Path | None = None
-    # Id of the subscription plan you pay for (see `plans` in pricing.yaml), e.g. "max5x".
-    plan: str | None = None
+    # Display preferences, also editable in Settings unless set here (environment variables win).
+    # Amounts are stored and served in USD; the dashboard converts them for display.
+    currency: str = "EUR"  # EUR | USD
+    eur_per_usd: float = 0.86  # update by hand: WAMT never calls an exchange-rate service
+    plan: str | None = None  # id of the plan you pay for (see `plans` in pricing.yaml), e.g. "max5x"
+    billing: str = "monthly"  # monthly | annual, picks the plan price to compare with
     # Timezone used to bucket daily charts.
     timezone: str = "UTC"
     static_dir: Path | None = None

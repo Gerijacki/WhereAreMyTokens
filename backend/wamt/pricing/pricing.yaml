@@ -43,16 +43,23 @@ models:
     input: 1.00
     output: 5.00
 
-# Claude subscription plans in USD per month, compared with your API-equivalent cost in the
-# "Plan value" card. Set WAMT_PLAN to the id of the plan you pay for. Check the current prices
-# at https://claude.com/pricing and edit them here if they change.
+# Claude subscription plans, compared with your API-equivalent cost in the "Plan value" card.
+# Prices per month in each currency, billed monthly or annually (annual = the monthly equivalent
+# of the yearly price). Pick yours in Settings, or with WAMT_PLAN / WAMT_BILLING / WAMT_CURRENCY.
+# Check the current prices at https://claude.com/pricing and edit them here if they change.
 plans:
   - id: pro
     name: Pro
-    usd_month: 20
+    prices:
+      USD: {monthly: 20, annual: 17}
+      EUR: {monthly: 18, annual: 15}
   - id: max5x
     name: Max 5x
-    usd_month: 100
+    prices:
+      USD: {monthly: 100, annual: 100}
+      EUR: {monthly: 90, annual: 90}
   - id: max20x
     name: Max 20x
-    usd_month: 200
+    prices:
+      USD: {monthly: 200, annual: 200}
+      EUR: {monthly: 180, annual: 180}

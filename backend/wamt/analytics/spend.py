@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from wamt.api.queries import day_bucket
 from wamt.config import get_settings
 from wamt.db import ApiCall, Budget, ChatSession, Project
+from wamt.preferences import effective
 from wamt.pricing import load_plans
 
 PERIODS = ("day", "week", "month")
@@ -54,8 +55,7 @@ def plan_value(db: Session, months: int = 6, now: datetime | None = None) -> dic
     `monthly_usd` is the last 30 days of cost. With less than 30 days of history it is scaled up
     to 30 days, which assumes the days you have are typical.
     """
-    s = get_settings()
-    tz = ZoneInfo(s.timezone)
+    tz = ZoneInfo(get_settings().timezone)
     now = (now or datetime.now(UTC)).astimezone(tz)
     plans = load_plans()
 
@@ -87,15 +87,22 @@ def plan_value(db: Session, months: int = 6, now: datetime | None = None) -> dic
         month_rows.append(row)
         m = _next_month(m)
 
-    current = next((p for p in plans if p.id == s.plan), None)
+    prefs = effective(db)
+    out_plans = []
+    for p in plans:
+        price, cur = p.price(prefs["currency"], prefs["billing"])
+        usd_month = price / prefs["eur_per_usd"] if cur == "EUR" else price  # amounts are served in USD
+        out_plans.append({"id": p.id, "name": p.name, "price": price, "price_currency": cur,
+                          "usd_month": round(usd_month, 4),
+                          "value_multiple": round(monthly / usd_month, 2) if usd_month else None,
+                          "api_cheaper": monthly < usd_month})
     return {
-        "current_plan": current.id if current else None,
+        "current_plan": prefs["plan"],
+        "billing": prefs["billing"],
         "monthly_usd": round(monthly, 4),
         "trailing_30d_usd": round(trailing, 4),
         "history_days": round(history_days, 1),
-        "plans": [{"id": p.id, "name": p.name, "usd_month": p.usd_month,
-                   "value_multiple": round(monthly / p.usd_month, 2) if p.usd_month else None,
-                   "api_cheaper": monthly < p.usd_month} for p in plans],
+        "plans": out_plans,
         "months": month_rows,
     }
 

@@ -27,7 +27,19 @@ class ModelPrice:
 class Plan:
     id: str
     name: str
-    usd_month: float
+    prices: dict[str, dict[str, float]]  # currency -> billing (monthly | annual) -> price per month
+
+    def price(self, currency: str, billing: str) -> tuple[float, str]:
+        """Monthly price in `currency` if listed, else in USD. Returns (price, currency it's in)."""
+        cur = currency if currency in self.prices else "USD"
+        table = self.prices.get(cur) or next(iter(self.prices.values()))
+        return float(table.get(billing, table.get("monthly"))), cur
+
+
+def _plan(raw: dict) -> Plan:
+    prices = raw.get("prices") or {"USD": {"monthly": raw["usd_month"]}}  # pre-0.3 format
+    return Plan(id=str(raw["id"]), name=str(raw["name"]),
+                prices={c.upper(): {b: float(v) for b, v in t.items()} for c, t in prices.items()})
 
 
 def _read(path: str | None) -> dict:
@@ -58,8 +70,7 @@ def load_prices(path: str | None = None) -> tuple[ModelPrice, ...]:
 def load_plans(path: str | None = None) -> tuple[Plan, ...]:
     """Subscription plans, cheapest first. A custom pricing file without `plans` keeps the bundled ones."""
     plans = _read(path).get("plans") or yaml.safe_load(BUNDLED.read_text(encoding="utf-8"))["plans"]
-    return tuple(sorted((Plan(id=str(p["id"]), name=str(p["name"]), usd_month=float(p["usd_month"]))
-                         for p in plans), key=lambda p: p.usd_month))
+    return tuple(sorted((_plan(p) for p in plans), key=lambda p: p.price("USD", "monthly")[0]))
 
 
 def price_for(model: str | None) -> ModelPrice | None:

@@ -52,7 +52,11 @@ def send(title: str, message: str, url: str | None = None) -> None:
 
 
 def _usd(v: float) -> str:
-    return f"${v:,.2f}"
+    """Format an amount (stored in USD) in the display currency."""
+    from wamt.preferences import money
+
+    with new_session() as db:
+        return money(db, v)
 
 
 def check(force: bool = False) -> list[str]:
