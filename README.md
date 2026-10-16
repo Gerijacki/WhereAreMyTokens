@@ -7,15 +7,20 @@
 Self-hosted usage analytics for Claude Code Pro/Max subscriptions. One `docker compose up`, read-only access to your local transcripts, nothing leaves your machine.
 
 [![CI](https://github.com/Gerijacki/WhereAreMyTokens/actions/workflows/ci.yml/badge.svg)](https://github.com/Gerijacki/WhereAreMyTokens/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Gerijacki/WhereAreMyTokens?color=2a78d6)](https://github.com/Gerijacki/WhereAreMyTokens/releases)
+[![Docker image](https://img.shields.io/badge/ghcr.io-amd64%20%7C%20arm64-2496ed?logo=docker&logoColor=white)](https://github.com/Gerijacki/WhereAreMyTokens/pkgs/container/wherearemytokens)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ed)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-yes-1baf7a)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png">
-  <img alt="WhereAreMyTokens overview: API-equivalent cost, cache hit ratio, cost by model and work category" src="docs/screenshots/overview-light.png" width="100%">
-</picture>
+<img alt="A tour of WhereAreMyTokens: the overview with plan value and budgets, an insight with its ready-to-paste fix, a session, and the dark theme" src="docs/demo.gif" width="100%">
+
+**Try it in one command**, on synthetic data (nothing from your machine is read):
+
+```bash
+docker run --rm -p 8788:8787 ghcr.io/gerijacki/wherearemytokens demo    # then open http://localhost:8788
+```
 
 [Quick start](#quick-start) · [Try the demo](#try-it-with-demo-data) · [Features](#features) · [Insights](#automate-this-insights) · [Self-hosting](#self-hosting) · [FAQ](#faq)
 
@@ -49,9 +54,16 @@ Open **http://localhost:8787**. The first start imports your whole history (a fe
 
 > On Windows, set `CLAUDE_PROJECTS_DIR=C:/Users/<you>/.claude/projects` in `.env`.
 
+Prefer a single container with SQLite instead of PostgreSQL? Mount your transcripts and a volume for the history:
+
+```bash
+docker run -d --name wamt -p 8787:8787 -v ~/.claude/projects:/data/claude:ro -v wamt-data:/data/wamt \
+  ghcr.io/gerijacki/wherearemytokens
+```
+
 ### Try it with demo data
 
-No Claude Code history yet, or want to look before mounting your own data? The demo generates realistic synthetic transcripts and doesn't read anything from your machine:
+No Claude Code history yet, or want to look before mounting your own data? The demo generates realistic synthetic transcripts and doesn't read anything from your machine. Run `docker run --rm -p 8788:8787 ghcr.io/gerijacki/wherearemytokens demo`, or build it from the repo:
 
 ```bash
 docker compose -f docker-compose.demo.yml up --build    # http://localhost:8788
@@ -74,6 +86,11 @@ docker compose -f docker-compose.demo.yml up --build    # http://localhost:8788
 | **Export** | Sessions, prompts and daily costs per project and model as CSV or JSON, for billing clients or your own analysis. |
 | **Self-hosting** | Multi-device agent, optional password or reverse-proxy auth, ntfy/Discord/Slack alerts, Prometheus `/metrics`, OpenTelemetry receiver, privacy mode. |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png">
+  <img alt="Overview: API-equivalent cost, plan value against Pro, budgets, cost by model and token kind" src="docs/screenshots/overview-light.png" width="100%">
+</picture>
+
 <table>
 <tr>
 <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/activity-dark.png"><img alt="Activity: cost by work category, 5-hour blocks and heatmap" src="docs/screenshots/activity-light.png"></picture></td>
@@ -82,6 +99,9 @@ docker compose -f docker-compose.demo.yml up --build    # http://localhost:8788
 <tr>
 <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tools-dark.png"><img alt="Tools: most-run commands, most-read files and largest results" src="docs/screenshots/tools-light.png"></picture></td>
 <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/session-dark.png"><img alt="Session detail: cost per prompt, events and categories" src="docs/screenshots/session-light.png"></picture></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/settings-dark.png"><img alt="Settings: theme, currency, plan, password, devices and exports" src="docs/screenshots/settings-light.png" width="50%"></picture></td>
 </tr>
 </table>
 
@@ -212,6 +232,7 @@ make dev-api    # demo data in .dev/ and the API on :8787 (SQLite)
 make dev-web    # http://localhost:5173, proxies /api to :8787
 make check      # pytest, ruff, Vitest and the production build
 make e2e        # Playwright end-to-end tests against the real backend on demo data
+make screenshots  # regenerate the README screenshots and docs/demo.gif from demo data (needs ffmpeg)
 ```
 
 Or by hand:
@@ -253,6 +274,8 @@ Architecture notes for contributors are in [CLAUDE.md](CLAUDE.md), and the contr
 - [ ] Weekly report email and shareable read-only links
 
 Ideas and insight detectors are very welcome. Open an issue with the *Insight idea* template.
+
+If WhereAreMyTokens saved you tokens, a ⭐ helps other Claude Code users find it.
 
 ## License
 

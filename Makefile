@@ -3,7 +3,7 @@ PY := backend/.venv/bin
 DEV := $(CURDIR)/.dev
 DEMO_ENV := WAMT_CLAUDE_DATA_DIR=$(DEV)/demo WAMT_DATABASE_URL=sqlite:///$(DEV)/demo.db
 
-.PHONY: help setup demo dev-api dev-web test lint build check e2e
+.PHONY: help setup demo dev-api dev-web test lint build check e2e screenshots
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -35,3 +35,6 @@ check: lint test build  ## Everything CI runs except e2e and Docker
 
 e2e:  ## Playwright end-to-end tests (run `cd web && pnpm exec playwright install chromium` once)
 	cd web && pnpm test:e2e
+
+screenshots: build  ## Regenerate docs/screenshots and docs/demo.gif from demo data (needs ffmpeg)
+	cd web && node scripts/showcase.mjs

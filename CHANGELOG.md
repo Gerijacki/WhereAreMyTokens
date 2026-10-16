@@ -2,6 +2,18 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `docker run ghcr.io/gerijacki/wherearemytokens demo`: try it in one command on synthetic data, without cloning.
+- The image runs standalone with SQLite in `/data/wamt` (a volume) when `WAMT_DATABASE_URL` isn't set. Before, it failed to start without PostgreSQL.
+- `make screenshots` regenerates the README screenshots and the demo GIF from demo data.
+
+### Changed
+
+- The image has an entrypoint: `serve` (default), `demo`, or any command such as `wamt agent`.
+
 ## [0.3.0] - 2026-10-16
 
 > **Heads-up:** amounts are now shown in **euros by default**. To keep dollars, switch to USD in *Settings* or set `WAMT_CURRENCY=USD`. Set your exchange rate there too (`WAMT_EUR_PER_USD`, default 0.86): WAMT never looks it up online. Stored data is unchanged; the API still serves USD.

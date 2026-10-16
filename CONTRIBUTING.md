@@ -56,4 +56,4 @@ To get realistic data without your own, run `wamt demo --dir /tmp/demo` and then
 
 - Keep PRs focused and describe the user-visible change.
 - `pytest`, `ruff`, `pnpm build`, `pnpm test` and `pnpm test:e2e` must pass (`make check e2e`). CI also smoke-tests the Docker image on demo data.
-- For UI changes, add a screenshot taken from **demo data**.
+- For UI changes, add a screenshot taken from **demo data**. `make screenshots` regenerates every README screenshot (light and dark) and `docs/demo.gif` from it; commit them when a page you changed appears there.
