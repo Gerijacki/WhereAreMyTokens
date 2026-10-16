@@ -2,7 +2,7 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.1] - 2026-10-16
 
 ### Added
 
@@ -12,6 +12,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- The dashboard is built once, natively, for both image architectures, instead of under arm64 emulation. Releases build faster and can't hang there; the release job also times out after 30 minutes.
 - The image has an entrypoint: `serve` (default), `demo`, or any command such as `wamt agent`.
 
 ## [0.3.0] - 2026-10-16
