@@ -1,13 +1,21 @@
-import { describe, expect, it } from "vitest";
-import { continuousDays, pct, shortModel, tokens, truncate, usd } from "./format";
+import { afterEach, describe, expect, it } from "vitest";
+import { continuousDays, money, pct, setCurrency, shortModel, tokens, toUsd, truncate } from "./format";
 
 describe("format", () => {
   it("abbreviates token counts", () => {
     expect([tokens(999), tokens(1_500), tokens(2_340_000), tokens(3_210_000_000)]).toEqual(["999", "1.5k", "2.3M", "3.21B"]);
   });
 
+  afterEach(() => setCurrency("USD", 1));
+
   it("shows more decimals for small amounts", () => {
-    expect([usd(0), usd(0.0123), usd(4.5), usd(1234.4)]).toEqual(["$0", "$0.012", "$4.50", "$1234"]);
+    expect([money(0), money(0.0123), money(4.5), money(1234.4)]).toEqual(["$0", "$0.012", "$4.50", "$1234"]);
+  });
+
+  it("converts USD amounts to euros for display, and typed euros back", () => {
+    setCurrency("EUR", 0.9);
+    expect([money(10), money(200), money(-1)]).toEqual(["€9.00", "€180", "-€0.900"]);
+    expect(toUsd(9)).toBeCloseTo(10);
   });
 
   it("formats ratios and missing values", () => {

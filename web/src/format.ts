@@ -5,11 +5,40 @@ export function tokens(n: number): string {
   return String(n);
 }
 
-export function usd(n: number): string {
-  if (n >= 100) return `$${n.toFixed(0)}`;
-  if (n >= 1) return `$${n.toFixed(2)}`;
-  if (n === 0) return "$0";
-  return `$${n.toFixed(3)}`;
+export type Currency = "EUR" | "USD";
+
+const SYMBOLS: Record<Currency, string> = { EUR: "€", USD: "$" };
+let display: { code: Currency; eurPerUsd: number } = { code: "USD", eurPerUsd: 1 };
+
+/** Set once from /api/settings, before the dashboard renders (see SettingsGate in main.tsx). */
+export function setCurrency(code: Currency, eurPerUsd: number) {
+  display = { code, eurPerUsd };
+}
+
+export function currencySymbol(): string {
+  return SYMBOLS[display.code];
+}
+
+/** USD (as every amount from the API) to the display currency. */
+export function fromUsd(n: number): number {
+  return display.code === "EUR" ? n * display.eurPerUsd : n;
+}
+
+/** Display currency back to USD, for amounts typed in by the user. */
+export function toUsd(n: number): number {
+  return display.code === "EUR" ? n / display.eurPerUsd : n;
+}
+
+/** Format an amount given in USD, in the display currency. */
+export function money(usd: number): string {
+  const n = fromUsd(usd);
+  const sign = n < 0 ? "-" : "";
+  const sym = SYMBOLS[display.code];
+  const a = Math.abs(n);
+  if (a >= 100) return `${sign}${sym}${a.toFixed(0)}`;
+  if (a >= 1) return `${sign}${sym}${a.toFixed(2)}`;
+  if (a === 0) return `${sym}0`;
+  return `${sign}${sym}${a.toFixed(3)}`;
 }
 
 export function pct(n: number | null): string {

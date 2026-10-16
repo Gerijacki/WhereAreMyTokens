@@ -5,7 +5,7 @@ import { get, send, type SessionDetail as Detail, type SessionEventRow, type Tur
 import { CATEGORY_LABELS, categoryColor } from "../categories";
 import { Chart, axisStyle, baseOption, type Theme } from "../components/Chart";
 import { Card, ErrorBox, Loading, Stat } from "../components/ui";
-import { dateTime, pct, shortModel, tokens, truncate, usd } from "../format";
+import { dateTime, pct, shortModel, tokens, truncate, money } from "../format";
 
 export default function SessionDetail() {
   const { id } = useParams();
@@ -36,11 +36,11 @@ function Body({ s, highlight }: { s: Detail; highlight: string }) {
           const t = turns[ps[0].dataIndex];
           const prompt = truncate(t.prompt, 90).replace(/</g, "&lt;");
           return `<div style="max-width:320px;white-space:normal"><b>#${ps[0].dataIndex + 1}</b> ${prompt}<br/>` +
-            `<span style="font-family:monospace">${usd(t.cost_usd)} · ${t.api_calls} calls</span></div>`;
+            `<span style="font-family:monospace">${money(t.cost_usd)} · ${t.api_calls} calls</span></div>`;
         },
       },
       xAxis: { type: "category", data: turns.map((_, i) => `#${i + 1}`), ...axisStyle(th), splitLine: { show: false } },
-      yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => usd(v) } },
+      yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => money(v) } },
       series: [{
         type: "bar",
         barMaxWidth: 24,
@@ -67,9 +67,9 @@ function Body({ s, highlight }: { s: Detail; highlight: string }) {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="API-equivalent cost" value={usd(s.cost_usd)} hint={`${s.api_calls} API calls`} />
+        <Stat label="API-equivalent cost" value={money(s.cost_usd)} hint={`${s.api_calls} API calls`} />
         <Stat label="Prompts" value={String(turns.length)}
-          hint={turns.length ? `${usd(s.cost_usd / turns.length)} per prompt` : undefined} />
+          hint={turns.length ? `${money(s.cost_usd / turns.length)} per prompt` : undefined} />
         <Stat label="Cache hit ratio" value={pct(s.cache_hit_ratio)} hint={`${tokens(s.cache_write)} written to cache`} />
         <Stat label="Output tokens" value={tokens(s.output_tokens)} hint={`${tokens(s.total_tokens)} total`} />
       </div>
@@ -88,7 +88,7 @@ function Body({ s, highlight }: { s: Detail; highlight: string }) {
                 <span className="muted num text-xs pt-0.5 w-28 shrink-0">{dateTime(e.ts)}</span>
                 <span>{eventLabel(e)}</span>
                 {e.kind === "cache_rebuild" && (
-                  <span className="muted num text-xs pt-0.5">{tokens(e.tokens)} rewritten · {usd(e.wasted_usd)} extra</span>
+                  <span className="muted num text-xs pt-0.5">{tokens(e.tokens)} rewritten · {money(e.wasted_usd)} extra</span>
                 )}
               </li>
             ))}
@@ -115,7 +115,7 @@ function Body({ s, highlight }: { s: Detail; highlight: string }) {
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <div className="num text-sm font-medium">{usd(t.cost_usd)}</div>
+                <div className="num text-sm font-medium">{money(t.cost_usd)}</div>
                 <div className="num text-xs muted">{tokens(t.total_tokens)} tok</div>
                 <div className="text-xs muted">{dateTime(t.ts)}</div>
               </div>

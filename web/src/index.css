@@ -167,7 +167,7 @@ body {
   font-weight: 500;
 }
 
-select.input {
+.input {
   font-size: 13px;
   padding: 5px 10px;
   border: 1px solid var(--border);
@@ -198,6 +198,16 @@ select.input {
   filter: brightness(1.08);
   background: var(--accent);
   color: #fff;
+}
+.input:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.input:disabled,
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 pre.code {

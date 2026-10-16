@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "../api";
-import { shortModel, tokens, usd } from "../format";
+import { shortModel, tokens, money } from "../format";
 import { Card } from "./ui";
 
 interface TelemetryData {
@@ -29,7 +29,7 @@ export function TelemetryCard({ days }: { days: number }) {
                 <td>{r.model ? shortModel(r.model) : "–"}</td>
                 <td className="r num">{r.requests.toLocaleString()}</td>
                 <td className="r num">{tokens(r.output_tokens)}</td>
-                <td className="r num">{usd(r.cost_usd)}</td>
+                <td className="r num">{money(r.cost_usd)}</td>
               </tr>
             ))}
           </tbody>

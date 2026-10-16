@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='%232a78d6'/><circle cx='16' cy='16' r='6' fill='%23fcfcfb'/></svg>" />
     <title>WhereAreMyTokens</title>
+    <script>
+      // Apply the saved theme before the first paint (src/theme.ts keeps it up to date).
+      try {
+        var t = localStorage.getItem("wamt.theme");
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

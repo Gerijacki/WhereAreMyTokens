@@ -1,12 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AuthStatus } from "./api";
 
-interface AuthStatus {
-  required: boolean;
-  authenticated: boolean;
-}
-
-/** Shows the login form when the server has WAMT_AUTH_PASSWORD set and there's no session yet. */
+/** Shows the login form when a dashboard password is set and there's no session yet. */
 export function AuthGate({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   useEffect(() => {
@@ -14,12 +10,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     window.addEventListener("wamt:unauthorized", recheck);
     return () => window.removeEventListener("wamt:unauthorized", recheck);
   }, [qc]);
-  const q = useQuery({
-    queryKey: ["auth"],
-    queryFn: async () => (await fetch("/api/auth/status")).json() as Promise<AuthStatus>,
-    refetchInterval: false,
-    staleTime: Infinity,
-  });
+  const q = useAuthStatus();
   if (q.isLoading) return null;
   if (q.data && q.data.required && !q.data.authenticated) return <Login />;
   return <>{children}</>;
@@ -74,6 +65,20 @@ function Login() {
       </form>
     </div>
   );
+}
+
+export function useAuthStatus() {
+  return useQuery({
+    queryKey: ["auth"],
+    queryFn: async () => (await fetch("/api/auth/status")).json() as Promise<AuthStatus>,
+    refetchInterval: false,
+    staleTime: Infinity,
+  });
+}
+
+export async function logout(invalidate: () => Promise<unknown>) {
+  await fetch("/api/auth/logout", { method: "POST" });
+  await invalidate();
 }
 
 /** Any 401 from the API means the session expired: re-check auth so the login form appears. */

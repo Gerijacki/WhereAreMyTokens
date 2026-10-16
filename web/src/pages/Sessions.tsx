@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { get, type SessionRow } from "../api";
 import { Card, Empty, ErrorBox, Loading } from "../components/ui";
 import { FilterBar, useFilters } from "../filters";
-import { dateTime, pct, tokens, truncate, usd } from "../format";
+import { dateTime, pct, tokens, truncate, money } from "../format";
 
 const SORTS = [
   { key: "recent", label: "Recent" },
@@ -40,6 +40,10 @@ export default function Sessions() {
             ))}
           </div>
           <FilterBar />
+          <a className="btn" download
+            href={`/api/export/sessions.csv?${new URLSearchParams({ days: String(days), ...(projectId ? { project_id: String(projectId) } : {}) })}`}>
+            Export CSV
+          </a>
         </div>
       </div>
       {q.isLoading && <Loading />}
@@ -72,7 +76,7 @@ export default function Sessions() {
                       <td className="r num">{s.api_calls.toLocaleString()}</td>
                       <td className="r num">{tokens(s.total_tokens)}</td>
                       <td className="r num">{pct(s.cache_hit_ratio)}</td>
-                      <td className="r num">{usd(s.cost_usd)}</td>
+                      <td className="r num">{money(s.cost_usd)}</td>
                     </tr>
                   ))}
                 </tbody>

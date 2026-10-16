@@ -9,7 +9,7 @@ import { Budgets, PlanValue } from "../components/Spend";
 import { TelemetryCard } from "../components/Telemetry";
 import { Card, Empty, ErrorBox, Loading, Stat } from "../components/ui";
 import { FilterBar, useFilters } from "../filters";
-import { continuousDays, dateTime, pct, shortModel, tokens, truncate, usd } from "../format";
+import { continuousDays, dateTime, pct, shortModel, tokens, truncate, money } from "../format";
 import { useModelColors } from "../modelColors";
 
 const KINDS = [
@@ -68,11 +68,11 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
           ...(baseOption(th).tooltip as object),
           trigger: "axis",
           axisPointer: { type: "shadow", shadowStyle: { color: th.grid, opacity: 0.5 } },
-          valueFormatter: (v: number) => usd(v),
+          valueFormatter: (v: number) => money(v),
         },
         legend: { ...(baseOption(th).legend as object), data: models.map(shortModel) },
         xAxis: { type: "category", data: days, ...axisStyle(th), splitLine: { show: false } },
-        yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => usd(v) } },
+        yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => money(v) } },
         series: models.map((m) => ({
           name: shortModel(m),
           type: "bar",
@@ -99,7 +99,7 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
     (th: Theme) => ({
       ...baseOption(th),
       grid: { left: 8, right: 56, top: 4, bottom: 4, containLabel: true },
-      tooltip: { ...(baseOption(th).tooltip as object), trigger: "item", valueFormatter: (v: number) => usd(v) },
+      tooltip: { ...(baseOption(th).tooltip as object), trigger: "item", valueFormatter: (v: number) => money(v) },
       xAxis: { type: "value", show: false },
       yAxis: {
         type: "category",
@@ -113,7 +113,7 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
         type: "bar",
         barWidth: 18,
         itemStyle: { color: th.series[0], borderRadius: [0, 4, 4, 0] },
-        label: { show: true, position: "right", color: th.textSecondary, formatter: (p: { value: number }) => usd(p.value) },
+        label: { show: true, position: "right", color: th.textSecondary, formatter: (p: { value: number }) => money(p.value) },
         data: KINDS.map((k) => data.cost_by_kind[k.key]),
       }],
     }),
@@ -123,12 +123,12 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="API-equivalent cost" value={usd(t.cost_usd)}
+        <Stat label="API-equivalent cost" value={money(t.cost_usd)}
           hint={t.unpriced_calls ? `${t.unpriced_calls} calls on unpriced models` : `${t.api_calls.toLocaleString()} API calls`} />
         <Stat label="Tokens processed" value={tokens(t.total_tokens)} hint={`${tokens(t.output_tokens)} output`} />
         <Stat label="Cache hit ratio" value={pct(t.cache_hit_ratio)} hint="cache reads ÷ prompt tokens" />
         <Stat label="Prompts" value={t.prompts.toLocaleString()}
-          hint={`${t.sessions} sessions · ${usd(t.prompts ? t.cost_usd / t.prompts : 0)} per prompt`} />
+          hint={`${t.sessions} sessions · ${money(t.prompts ? t.cost_usd / t.prompts : 0)} per prompt`} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -179,7 +179,7 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
                     <td className="r num">{tokens(m.cache_read)}</td>
                     <td className="r num">{tokens(m.cache_write)}</td>
                     <td className="r num">{pct(m.cache_hit_ratio)}</td>
-                    <td className="r num">{usd(m.cost_usd)}</td>
+                    <td className="r num">{money(m.cost_usd)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -216,7 +216,7 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
                     <td className="secondary whitespace-nowrap">{r.project}</td>
                     <td className="secondary whitespace-nowrap">{dateTime(r.ts)}</td>
                     <td className="r num">{r.api_calls}</td>
-                    <td className="r num">{usd(r.cost_usd)}</td>
+                    <td className="r num">{money(r.cost_usd)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -244,7 +244,7 @@ function ThreadRow({ label, cost, total, calls }: { label: string; cost: number;
     <div className="py-2">
       <div className="flex justify-between text-sm">
         <span>{label}</span>
-        <span className="num">{usd(cost)} <span className="muted">· {pct(share)}</span></span>
+        <span className="num">{money(cost)} <span className="muted">· {pct(share)}</span></span>
       </div>
       <div className="h-2 rounded mt-1.5" style={{ background: "var(--surface-2)" }}>
         <div className="h-2 rounded" style={{ width: `${share * 100}%`, background: "var(--accent)" }} />

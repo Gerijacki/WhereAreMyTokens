@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { get, type CacheData } from "../api";
 import { Card, Empty, ErrorBox, Loading, Stat } from "../components/ui";
 import { FilterBar, useFilters } from "../filters";
-import { dateTime, pct, tokens, truncate, usd } from "../format";
+import { dateTime, pct, tokens, truncate, money } from "../format";
 
 function gap(seconds: number | null): string {
   if (seconds === null) return "–";
@@ -44,9 +44,9 @@ function Body({ data }: { data: CacheData }) {
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat label="Cache hit ratio" value={pct(t.hit_ratio)} hint={`${tokens(t.cache_read)} tokens read from cache`} />
-        <Stat label="Saved by caching" value={usd(t.saved_usd)} hint="vs. sending every token as fresh input" />
-        <Stat label="Spent on cache reads" value={usd(t.read_usd)} hint={`${usd(t.write_usd)} on cache writes`} />
-        <Stat label="Lost to rebuilds" value={usd(wasted)}
+        <Stat label="Saved by caching" value={money(t.saved_usd)} hint="vs. sending every token as fresh input" />
+        <Stat label="Spent on cache reads" value={money(t.read_usd)} hint={`${money(t.write_usd)} on cache writes`} />
+        <Stat label="Lost to rebuilds" value={money(wasted)}
           hint={`${data.by_cause.reduce((a, c) => a + c.rebuilds, 0)} rebuilds · extra cost of writing vs. reading`} />
       </div>
 
@@ -58,7 +58,7 @@ function Body({ data }: { data: CacheData }) {
                 <li key={c.cause}>
                   <div className="flex justify-between text-sm gap-3">
                     <span>{c.label}</span>
-                    <span className="num whitespace-nowrap">{usd(c.wasted_usd)} <span className="muted">· {c.rebuilds}×</span></span>
+                    <span className="num whitespace-nowrap">{money(c.wasted_usd)} <span className="muted">· {c.rebuilds}×</span></span>
                   </div>
                   <div className="h-2 rounded mt-1.5" style={{ background: "var(--surface-2)" }}>
                     <div className="h-2 rounded" style={{ width: `${(c.wasted_usd / maxWaste) * 100}%`, background: "var(--accent)" }} />
@@ -105,7 +105,7 @@ function Body({ data }: { data: CacheData }) {
                     <td className="secondary">{data.by_cause.find((c) => c.cause === e.cause)?.label ?? e.cause}</td>
                     <td className="r num">{gap(e.gap_seconds)}</td>
                     <td className="r num">{tokens(e.tokens)}</td>
-                    <td className="r num">{usd(e.wasted_usd)}</td>
+                    <td className="r num">{money(e.wasted_usd)}</td>
                   </tr>
                 ))}
               </tbody>

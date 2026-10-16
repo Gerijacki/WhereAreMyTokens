@@ -5,7 +5,7 @@ import { CHART_GROUPS, CategoryChip, categoryColor, chartGroup, groupLabel } fro
 import { Chart, axisStyle, baseOption, type Theme } from "../components/Chart";
 import { Card, Empty, ErrorBox, Loading, Stat } from "../components/ui";
 import { FilterBar, useFilters } from "../filters";
-import { continuousDays, pct, tokens, usd } from "../format";
+import { continuousDays, pct, tokens, money } from "../format";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -55,11 +55,11 @@ function CategoriesSection({ data }: { data: CategoriesData }) {
           ...(baseOption(th).tooltip as object),
           trigger: "axis",
           axisPointer: { type: "shadow", shadowStyle: { color: th.grid, opacity: 0.5 } },
-          valueFormatter: (v: number) => usd(v),
+          valueFormatter: (v: number) => money(v),
         },
         legend: { ...(baseOption(th).legend as object), data: groups.map(groupLabel) },
         xAxis: { type: "category", data: days, ...axisStyle(th), splitLine: { show: false } },
-        yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => usd(v) } },
+        yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => money(v) } },
         series: groups.map((g) => ({
           name: groupLabel(g),
           type: "bar",
@@ -92,8 +92,8 @@ function CategoriesSection({ data }: { data: CategoriesData }) {
                 <tr key={c.category}>
                   <td><CategoryChip category={c.category} /></td>
                   <td className="r num">{c.prompts}</td>
-                  <td className="r num">{usd(c.cost_per_prompt)}</td>
-                  <td className="r num">{usd(c.cost_usd)}</td>
+                  <td className="r num">{money(c.cost_per_prompt)}</td>
+                  <td className="r num">{money(c.cost_usd)}</td>
                   <td className="r num">{pct(c.cost_usd / total)}</td>
                 </tr>
               ))}
@@ -122,12 +122,12 @@ function LimitsSection({ data }: { data: LimitsData }) {
           formatter: (ps: { dataIndex: number }[]) => {
             const b = blocks[ps[0].dataIndex];
             return `<b>${fmt(b.start)}</b> · ${data.block_hours}h block<br/>` +
-              `<span style="font-family:monospace">${usd(b.cost_usd)} · ${b.calls} calls · ${tokens(b.tokens)} new tokens</span><br/>` +
+              `<span style="font-family:monospace">${money(b.cost_usd)} · ${b.calls} calls · ${tokens(b.tokens)} new tokens</span><br/>` +
               `<span style="opacity:.75">active ${b.active_minutes} min</span>`;
           },
         },
         xAxis: { type: "category", data: blocks.map((b) => fmt(b.start)), ...axisStyle(th), splitLine: { show: false } },
-        yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => usd(v) } },
+        yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => money(v) } },
         series: [{
           type: "bar",
           barMaxWidth: 22,
@@ -160,7 +160,7 @@ function LimitsSection({ data }: { data: LimitsData }) {
         tooltip: {
           ...(baseOption(th).tooltip as object),
           formatter: (p: { value: [number, number, number] }) =>
-            `${WEEKDAYS[p.value[1]]} ${String(p.value[0]).padStart(2, "0")}:00 · <b>${usd(p.value[2])}</b>`,
+            `${WEEKDAYS[p.value[1]]} ${String(p.value[0]).padStart(2, "0")}:00 · <b>${money(p.value[2])}</b>`,
         },
         xAxis: { type: "category", data: Array.from({ length: 24 }, (_, h) => String(h)), ...axisStyle(th),
           splitLine: { show: false }, axisLine: { show: false } },
@@ -169,7 +169,7 @@ function LimitsSection({ data }: { data: LimitsData }) {
         visualMap: {
           min: 0, max: max || 1, calculable: false, orient: "horizontal", left: "center", bottom: 0,
           itemWidth: 10, itemHeight: 120, textStyle: { color: th.muted, fontSize: 11 },
-          formatter: (v: number) => usd(v),
+          formatter: (v: number) => money(v),
           inRange: { color: [th.surface2, th.series[0]] },
         },
         series: [{
@@ -187,11 +187,11 @@ function LimitsSection({ data }: { data: LimitsData }) {
     (th: Theme) => ({
       ...baseOption(th),
       grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
-      tooltip: { ...(baseOption(th).tooltip as object), trigger: "axis", valueFormatter: (v: number) => usd(v),
+      tooltip: { ...(baseOption(th).tooltip as object), trigger: "axis", valueFormatter: (v: number) => money(v),
         axisPointer: { type: "shadow", shadowStyle: { color: th.grid, opacity: 0.5 } } },
       xAxis: { type: "category", data: data.weekly.map((w) => `wk ${w.week.slice(5)}`), ...axisStyle(th),
         splitLine: { show: false } },
-      yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => usd(v) } },
+      yAxis: { type: "value", ...axisStyle(th), axisLabel: { ...axisStyle(th).axisLabel, formatter: (v: number) => money(v) } },
       series: [{ type: "bar", barMaxWidth: 28, itemStyle: { color: th.series[0], borderRadius: [4, 4, 0, 0] },
         data: data.weekly.map((w) => w.cost_usd) }],
     }),
@@ -201,12 +201,12 @@ function LimitsSection({ data }: { data: LimitsData }) {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="Current 5-hour block" value={c ? usd(c.cost_usd) : "Idle"}
+        <Stat label="Current 5-hour block" value={c ? money(c.cost_usd) : "Idle"}
           hint={c ? `${c.calls} calls · ${c.minutes_left} min left` : "No activity in the last 5 hours"} />
-        <Stat label="Burn rate" value={c ? `${usd(c.burn_usd_per_hour)}/h` : "–"}
-          hint={c ? `Projected ${usd(c.projected_cost_usd)} by block end` : undefined} />
-        <Stat label="Median block" value={usd(data.median_block_cost_usd)} hint={`${data.blocks.length} blocks in range`} />
-        <Stat label="Heaviest block" value={usd(data.peak_block_cost_usd)}
+        <Stat label="Burn rate" value={c ? `${money(c.burn_usd_per_hour)}/h` : "–"}
+          hint={c ? `Projected ${money(c.projected_cost_usd)} by block end` : undefined} />
+        <Stat label="Median block" value={money(data.median_block_cost_usd)} hint={`${data.blocks.length} blocks in range`} />
+        <Stat label="Heaviest block" value={money(data.peak_block_cost_usd)}
           hint={c && data.peak_block_cost_usd ? `Current is ${pct(c.projected_cost_usd / data.peak_block_cost_usd)} of it (projected)` : "Your own high-water mark"} />
       </div>
       <Card title="5-hour usage blocks"

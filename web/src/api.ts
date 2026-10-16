@@ -179,10 +179,12 @@ export interface InsightsData {
 
 export interface PlanData {
   current_plan: string | null;
+  billing: "monthly" | "annual";
   monthly_usd: number;
   trailing_30d_usd: number;
   history_days: number;
-  plans: { id: string; name: string; usd_month: number; value_multiple: number | null; api_cheaper: boolean }[];
+  plans: { id: string; name: string; price: number; price_currency: string; usd_month: number;
+    value_multiple: number | null; api_cheaper: boolean }[];
   months: { month: string; cost_usd: number; partial: boolean; projected_usd: number | null }[];
 }
 
@@ -202,13 +204,40 @@ export interface BudgetRow {
   state: "ok" | "warning" | "over";
 }
 
-export async function send<T>(method: "PATCH" | "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
+export interface SettingsData {
+  currency: "EUR" | "USD";
+  eur_per_usd: number;
+  plan: string | null;
+  billing: "monthly" | "annual";
+  locked: string[];
+  currencies: ("EUR" | "USD")[];
+  plans: { id: string; name: string; prices: Record<string, Record<string, number>> }[];
+}
+
+export interface AuthStatus {
+  required: boolean;
+  authenticated: boolean;
+  source: "env" | "ui" | "none";
+  proxy_header: string | null;
+}
+
+export interface DeviceRow {
+  name: string;
+  created_at: string;
+  last_seen_at: string | null;
+  revoked: boolean;
+}
+
+export async function send<T>(method: "PATCH" | "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === 401) onUnauthorized();
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (res.status === 401 && !path.startsWith("/auth/")) onUnauthorized();
+  if (!res.ok) {
+    const detail = await res.json().then((b) => b?.detail, () => null);
+    throw new Error(typeof detail === "string" ? detail : `${res.status} ${res.statusText}`);
+  }
   return res.json() as Promise<T>;
 }
