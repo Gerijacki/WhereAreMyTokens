@@ -4,6 +4,10 @@ Only slimmed, redacted records leave the machine (see parser.slim_record): no fi
 no model output, no tool results - just usage, tool names/targets and prompt text.
 Offsets are kept in a local state file so restarts resume where they stopped; the server
 deduplicates, so re-sending after a failure is safe.
+
+New records are written to a local spool before the offset moves, and each spool file is deleted once the server
+has it. While the server is unreachable the backlog stays on disk, so it survives Claude Code deleting old
+transcripts and the agent restarting.
 """
 
 from __future__ import annotations
@@ -29,6 +33,8 @@ class Agent:
         self.root = root
         self.state_file = state_file
         self.send_prompts = send_prompts
+        self.spool = state_file.parent / "spool"
+        self._seq = 0  # keeps spool names unique where the clock is coarse
         self.offsets: dict[str, int] = {}
         if state_file.exists():
             self.offsets = json.loads(state_file.read_text(encoding="utf-8"))
@@ -77,19 +83,40 @@ class Agent:
             records.append(slim)
         return records, offset + end + 1
 
-    def sync_once(self) -> int:
-        """Send everything new. Returns the number of records sent."""
+    def _enqueue(self, key: str, records: list[dict]) -> None:
+        self.spool.mkdir(parents=True, exist_ok=True)
+        for i in range(0, len(records), MAX_RECORDS_PER_REQUEST):
+            self._seq += 1
+            name = f"{time.time_ns():020d}-{self._seq:06d}"
+            tmp = self.spool / f"{name}.tmp"
+            tmp.write_text(json.dumps({"path": key, "records": records[i:i + MAX_RECORDS_PER_REQUEST]}),
+                           encoding="utf-8")
+            tmp.replace(self.spool / f"{name}.json")
+
+    def pending(self) -> list[Path]:
+        """Spool files not yet accepted by the server, oldest first."""
+        return sorted(self.spool.glob("*.json")) if self.spool.is_dir() else []
+
+    def _flush(self) -> int:
         sent = 0
+        for item in self.pending():
+            batch = json.loads(item.read_text(encoding="utf-8"))
+            self._post([batch])
+            item.unlink()
+            sent += len(batch["records"])
+        return sent
+
+    def sync_once(self) -> int:
+        """Queue everything new, even when offline, then send the queue. Returns the number of records sent."""
         for file in sorted(self.root.rglob("*.jsonl")):
             key = str(file.relative_to(self.root)).replace("\\", "/")
             records, new_offset = self._read_new(file)
-            for i in range(0, len(records), MAX_RECORDS_PER_REQUEST):
-                self._post([{"path": key, "records": records[i:i + MAX_RECORDS_PER_REQUEST]}])
-            sent += len(records)
+            if records:
+                self._enqueue(key, records)
             if new_offset != self.offsets.get(key, 0):
                 self.offsets[key] = new_offset
                 self._save()
-        return sent
+        return self._flush()
 
     def run(self, interval: float = 10.0, once: bool = False) -> None:
         backoff = interval
@@ -106,7 +133,8 @@ class Agent:
                 log.warning("Server error %s; retrying in %.0fs", e.code, backoff)
                 backoff = min(backoff * 2, 300)
             except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
-                log.warning("Cannot reach server (%s); retrying in %.0fs", e, backoff)
+                log.warning("Cannot reach server (%s); %d batches queued, retrying in %.0fs",
+                            e, len(self.pending()), backoff)
                 backoff = min(backoff * 2, 300)
             if once:
                 return

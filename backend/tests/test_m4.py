@@ -116,6 +116,40 @@ def test_agent_pushes_to_server_with_device_token(env, tmp_path, monkeypatch):
     assert c.post("/api/ingest", json={"files": []}, headers={"Authorization": f"Bearer {token}"}).status_code == 401
 
 
+def test_agent_queues_while_offline_and_survives_deleted_transcripts(env, tmp_path, monkeypatch):
+    import urllib.error
+
+    from wamt import devices
+
+    with new_session() as db:
+        token = devices.create(db, "laptop")
+    c = client()
+    online = False
+
+    def post(self, files):
+        if not online:
+            raise urllib.error.URLError("homelab unreachable")
+        r = c.post("/api/ingest", json={"files": files}, headers={"Authorization": f"Bearer {self.token}"})
+        assert r.status_code == 200, r.text
+
+    monkeypatch.setattr(Agent, "_post", post)
+    root = tmp_path / "projects"
+    shutil.copytree(FIXTURES, root)
+    agent = Agent("http://test", token, root, tmp_path / "state" / "state.json")
+    agent.run(once=True)  # offline: logged, not raised
+    assert agent.pending()
+
+    shutil.rmtree(root)  # Claude Code cleaned up old transcripts meanwhile
+    root.mkdir()
+    restarted = Agent("http://test", token, root, tmp_path / "state" / "state.json")
+    online = True
+    assert restarted.sync_once() > 0
+    assert restarted.pending() == []
+    with new_session() as db:
+        assert db.scalar(select(func.sum(ApiCall.output_tokens))) == 160
+        assert db.scalar(select(func.count(Turn.id))) == 2
+
+
 def test_store_prompts_off_keeps_length_and_category(env, tmp_path):
     env(store_prompts="false")
     root = tmp_path / "projects"
