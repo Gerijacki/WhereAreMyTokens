@@ -52,11 +52,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Release notes from the changelog
+        env:
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          image="ghcr.io/${REPO,,}:${version}"
+          {
+            awk -v v="$version" '/^## \[/ { if (on) exit; on = index($0, "[" v "]") > 0; next } on' CHANGELOG.md \
+              | sed -E "s#\]\((docs|deploy)/#](https://github.com/${REPO}/blob/main/\1/#g"
+            printf '\n## Install\n\n```bash\ndocker pull %s\ndocker run --rm -p 8788:8787 %s demo   # try it on demo data\n```\n' "$image" "$image"
+            printf '\nSetup, configuration and the homelab guide are in the [README](https://github.com/%s#readme).\n' "$REPO"
+          } > notes.md
+          cat notes.md
       - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          body: |
-            ```bash
-            docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ```
-            See the [changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md).
+          body_path: notes.md
