@@ -160,7 +160,9 @@ pip install "git+https://github.com/Gerijacki/WhereAreMyTokens.git#subdirectory=
 wamt agent --server https://wamt.example.com --token wamt_xxx            # add --no-prompts to send no prompt text
 ```
 
-Or run it with Docker using [`docker-compose.agent.yml`](docker-compose.agent.yml).
+Or run it with Docker using [`docker-compose.agent.yml`](docker-compose.agent.yml), or as a systemd user service with [`deploy/wamt-agent.service`](deploy/wamt-agent.service). While the server can't be reached, the agent keeps new records in a local queue and sends them once it can, even if Claude Code has deleted the transcripts meanwhile. Once a second machine sends data, every view can be filtered by device.
+
+A step-by-step guide for a homelab with several computers, over Tailscale: [docs/homelab.md](docs/homelab.md).
 
 ### Privacy
 

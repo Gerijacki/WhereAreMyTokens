@@ -5,7 +5,8 @@ Self-hosted token analytics for Claude Code subscriptions. Everything user-facin
 ## Layout
 - `backend/wamt/collector/parser.py`: pure transcript-record → facts parsing. Put format quirks here, with a test in `tests/test_parser.py`.
 - `backend/wamt/collector/ingest.py`: incremental scan (byte offsets in `ingest_files`), DB writes, prompt attribution by timestamp.
-- `backend/wamt/api/routes.py`: FastAPI `/api/*`. Aggregations use `usage_columns()` / `usage_dict()` from `api/queries.py`.
+- `backend/wamt/api/routes.py`: FastAPI `/api/*`. Aggregations use `usage_columns()` / `usage_dict()` from `api/queries.py`,
+  and `scope()` there for the project and device filters (new endpoints should take both).
 - `backend/wamt/pricing/pricing.yaml`: API prices. Never hardcode prices elsewhere.
 - `backend/wamt/analytics/`: derived data. `commands.py` (command signatures), `classify.py` + `rules.yaml`
   (work categories), `cache.py` (rebuild detection), `enrich.py` (runs after each ingest batch, plus a full backfill
@@ -17,7 +18,8 @@ Self-hosted token analytics for Claude Code subscriptions. Everything user-facin
   `meta`, devices API. `auth.py` also handles the UI-set password. `api/export.py`: CSV/JSON exports.
 - `backend/wamt/analytics/spend.py` + `api/spend.py`: plan value (`/api/plan`, plan prices in `pricing.yaml`) and
   budgets (`/api/budgets`, alerted in `alerts.py`). Realized savings of done insights: `insights/engine.py: measure_done`.
-- M4 / self-hosting: `agent.py` + `api/ingest_api.py` + `devices.py` (multi-device push with device tokens),
+- M4 / self-hosting: `agent.py` (spools records to disk before moving its offsets) + `api/ingest_api.py` +
+  `devices.py` (multi-device push with device tokens; the device name is stored as `ChatSession.source`),
   `collector/redact.py` (secret masking, applied in the parser), `auth.py` (cookie/proxy auth middleware),
   `alerts.py`, `api/metrics.py` (Prometheus), `api/otel.py` (OTLP/JSON receiver), `analytics/blocks.py` (5h blocks),
   `demo.py` (synthetic transcripts for demos, screenshots and tests).

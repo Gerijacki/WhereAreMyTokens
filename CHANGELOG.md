@@ -2,6 +2,14 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Filter by device: every view that filters by project also takes a device (`?device=`), with a selector, a Device column in Sessions and a *By device* card on the Overview once a second machine sends data. `GET /api/sources` lists the devices, and session exports have a `device` column.
+- `wamt agent` keeps records it can't send yet in a local queue (`spool/` next to its state file) and sends them when the server is reachable again, so a long time offline loses nothing even after Claude Code deletes old transcripts.
+- `deploy/wamt-agent.service`, a systemd user service for the agent, and [docs/homelab.md](docs/homelab.md), a guide to one server with several computers.
+
 ## [0.3.1] - 2026-10-16
 
 ### Added

@@ -1,0 +1,26 @@
+# systemd user service for `wamt agent`: pushes this machine's Claude Code usage to a WAMT server.
+#
+#   uv tool install "git+https://github.com/Gerijacki/WhereAreMyTokens.git#subdirectory=backend"
+#   mkdir -p ~/.config/wamt ~/.config/systemd/user
+#   printf 'WAMT_SERVER=http://homelab:8787\nWAMT_TOKEN=wamt_xxx\n' > ~/.config/wamt/agent.env
+#   chmod 600 ~/.config/wamt/agent.env
+#   cp deploy/wamt-agent.service ~/.config/systemd/user/
+#   systemctl --user enable --now wamt-agent
+#   journalctl --user -u wamt-agent -f
+#
+# Records that can't be sent yet wait in ~/.config/wamt/spool until the server is reachable again.
+# Add WAMT_AGENT_ARGS=--no-prompts to agent.env to never send prompt text.
+
+[Unit]
+Description=WhereAreMyTokens agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/wamt/agent.env
+ExecStart=%h/.local/bin/wamt agent $WAMT_AGENT_ARGS
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target
