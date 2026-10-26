@@ -17,7 +17,7 @@ test("plan value compares the last 30 days with the chosen plan", async ({ page 
 
   try {
     await select.selectOption("max5x");
-    await expect(card).toContainText("less than Max 5x");
+    await expect(card).toContainText(/(less|more) than Max 5x/); // which side depends on the demo data's dates
     await page.reload();
     await expect(select).toHaveValue("max5x"); // saved on the server
     await expect(select.locator("option:checked")).toHaveText("Max 5x · €90/mo");
