@@ -75,6 +75,21 @@ wamt agent --server http://homelab:8787 --token wamt_xxx           # add --no-pr
   is reachable again. It doesn't depend on the transcripts, so nothing is lost when Claude Code deletes old
   sessions, which it does after 30 days by default (`cleanupPeriodDays`).
 
+## Troubleshooting
+
+- **Nothing arrives.** Check `journalctl --user -u wamt-agent` (or `docker compose -f docker-compose.agent.yml logs`).
+  "Cannot reach server … N batches queued" means it's waiting for the network: try
+  `curl http://homelab:8787/api/health` from that computer. *Settings → Devices* shows when each device was last seen.
+- **The agent stopped with "Server rejected the device token".** The token was revoked or mistyped. Create a new
+  device, put its token in `agent.env` and restart the agent. The queue is kept, and is sent under the new device once the agent restarts.
+- **Renaming a computer.** Sessions keep the device name they arrived with. Create a device with the new name and
+  revoke the old one; new sessions use the new name.
+- **Starting the agent over.** Delete `~/.config/wamt/agent-state.json` and it sends every transcript still on
+  disk again. That's safe: the server ignores what it already has.
+- **Where the data lives.** On the server, in the PostgreSQL volume (`wamt-db`). Back it up with
+  `docker compose exec db pg_dump -U wamt wamt > wamt.sql`: once Claude Code has deleted old transcripts, it's the
+  only copy. Agents keep only their offsets and the queue.
+
 ## Moving from a local install
 
 If a computer already ran its own WAMT, its agent re-sends every transcript still on disk, so there's nothing to

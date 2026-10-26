@@ -84,7 +84,8 @@ docker compose -f docker-compose.demo.yml up --build    # http://localhost:8788
 | **Insights** | Ten detectors that find wasted tokens and give you a ready-to-paste fix (see below), and the savings each fix actually delivered once you apply it. |
 | **Settings** | Light, dark or system theme; euros or dollars (at a rate you set); your plan and billing; the dashboard password; agent devices; all from the UI. |
 | **Export** | Sessions, prompts and daily costs per project and model as CSV or JSON, for billing clients or your own analysis. |
-| **Self-hosting** | Multi-device agent, optional password or reverse-proxy auth, ntfy/Discord/Slack alerts, Prometheus `/metrics`, OpenTelemetry receiver, privacy mode. |
+| **Several computers** | One server, an agent on each machine (Docker or a systemd service), and a device filter on every view. The agent queues what it can't send yet and catches up when the server is back. See the [homelab guide](docs/homelab.md). |
+| **Self-hosting** | Optional password or reverse-proxy auth, ntfy/Discord/Slack alerts, Prometheus `/metrics`, OpenTelemetry receiver, privacy mode. |
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png">
@@ -220,6 +221,8 @@ Claude Code deletes transcripts older than `cleanupPeriodDays` (30 by default). 
 
 **How is this different from `ccusage` and other CLI tools?** CLI tools are great for a quick total in the terminal. WhereAreMyTokens is a long-running dashboard: it keeps history beyond Claude Code's cleanup, merges several machines, classifies the work, explains cache behavior, and suggests concrete automations with the files to make them.
 
+**Can I combine several computers?** Yes. Run the server once (a homelab or a small VPS) and `wamt agent` on each computer; usage is merged and every view can be filtered by device. A laptop that's away keeps its records in a local queue until it can reach the server again. [docs/homelab.md](docs/homelab.md) walks through it with Tailscale.
+
 **Does it work with the API, Bedrock or Vertex instead of a subscription?** Yes. It reads the same transcripts. With API billing the cost column is close to your real bill.
 
 **Which models are priced?** Every current Claude model in [`pricing.yaml`](backend/wamt/pricing/pricing.yaml). Unknown models show as unpriced instead of being guessed.
@@ -271,6 +274,7 @@ Architecture notes for contributors are in [CLAUDE.md](CLAUDE.md), and the contr
 - [x] Work categories, 5-hour blocks, Tools and Cache dashboards
 - [x] Ten insight detectors with ready-to-paste fixes
 - [x] Multi-device agent, auth, alerts, OpenTelemetry, Prometheus, privacy mode, Alembic migrations
+- [x] Per-device filter, offline queue for the agent, systemd service and homelab guide
 - [ ] Optional LLM classifier (Haiku or local Ollama) for ambiguous prompts
 - [x] Budgets with alerts, plan comparison (Pro vs Max vs API) and realized savings
 - [ ] Weekly report email and shareable read-only links
