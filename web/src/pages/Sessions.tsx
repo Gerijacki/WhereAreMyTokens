@@ -12,13 +12,14 @@ const SORTS = [
 ];
 
 export default function Sessions() {
-  const { days, projectId } = useFilters();
+  const { days, projectId, device } = useFilters();
   const [params, setParams] = useSearchParams();
   const sort = params.get("sort") ?? "recent";
   const q = useQuery({
-    queryKey: ["sessions", days, projectId, sort],
-    queryFn: () => get<SessionRow[]>("/sessions", { days, project_id: projectId, sort, limit: 200 }),
+    queryKey: ["sessions", days, projectId, device, sort],
+    queryFn: () => get<SessionRow[]>("/sessions", { days, project_id: projectId, device, sort, limit: 200 }),
   });
+  const multiDevice = new Set(q.data?.map((s) => s.device)).size > 1;
 
   const setSort = (s: string) => {
     const next = new URLSearchParams(params);
@@ -41,7 +42,11 @@ export default function Sessions() {
           </div>
           <FilterBar />
           <a className="btn" download
-            href={`/api/export/sessions.csv?${new URLSearchParams({ days: String(days), ...(projectId ? { project_id: String(projectId) } : {}) })}`}>
+            href={`/api/export/sessions.csv?${new URLSearchParams({
+              days: String(days),
+              ...(projectId ? { project_id: String(projectId) } : {}),
+              ...(device ? { device } : {}),
+            })}`}>
             Export CSV
           </a>
         </div>
@@ -55,7 +60,7 @@ export default function Sessions() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Session</th><th>Project</th><th>Last activity</th><th className="r">Calls</th>
+                    <th>Session</th><th>Project</th>{multiDevice && <th>Device</th>}<th>Last activity</th><th className="r">Calls</th>
                     <th className="r">Tokens</th><th className="r">Hit ratio</th><th className="r">Cost</th>
                   </tr>
                 </thead>
@@ -72,6 +77,7 @@ export default function Sessions() {
                         </div>
                       </td>
                       <td className="secondary whitespace-nowrap">{s.project}</td>
+                      {multiDevice && <td className="secondary whitespace-nowrap">{s.device}</td>}
                       <td className="secondary whitespace-nowrap">{dateTime(s.ended_at)}</td>
                       <td className="r num">{s.api_calls.toLocaleString()}</td>
                       <td className="r num">{tokens(s.total_tokens)}</td>

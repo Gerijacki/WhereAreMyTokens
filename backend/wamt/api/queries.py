@@ -7,13 +7,29 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
 
 from wamt.config import get_settings
-from wamt.db import ApiCall
+from wamt.db import ApiCall, ChatSession
 
 TOKEN_COLUMNS = ("input_tokens", "output_tokens", "cache_write_5m", "cache_write_1h", "cache_read")
 
 
 def since(days: int | None) -> datetime | None:
     return datetime.now(UTC) - timedelta(days=days) if days else None
+
+
+def scope(stmt, project_id: int | None = None, device: str | None = None, session_col=None):
+    """Restrict to one project and/or one device (the session's source).
+
+    Joins ChatSession on `session_col` when given; pass None when the statement already joins it.
+    """
+    if project_id is None and device is None:
+        return stmt
+    if session_col is not None:
+        stmt = stmt.join(ChatSession, ChatSession.id == session_col)
+    if project_id is not None:
+        stmt = stmt.where(ChatSession.project_id == project_id)
+    if device is not None:
+        stmt = stmt.where(ChatSession.source == device)
+    return stmt
 
 
 def day_bucket(db: Session, column) -> ColumnElement:

@@ -14,7 +14,7 @@ from wamt.analytics.blocks import compute_limits
 from wamt.analytics.cache import CAUSES
 from wamt.analytics.classify import category_names, load_rules
 from wamt.analytics.commands import SHELL_TOOLS
-from wamt.api.queries import day_bucket, since, usage_columns, usage_dict
+from wamt.api.queries import day_bucket, scope, since, usage_columns, usage_dict
 from wamt.db import ApiCall, ChatSession, Insight, Project, SessionEvent, ToolCall, Turn, get_db, get_meta
 from wamt.pricing import price_for
 
@@ -28,30 +28,28 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
-def _scope(stmt, ts_col, days: int, project_id: int | None, session_col=None):
+def _scope(stmt, ts_col, days: int, project_id: int | None, session_col, device: str | None = None):
     start = since(days)
     if start is not None:
         stmt = stmt.where(ts_col >= start)
-    if project_id is not None:
-        stmt = stmt.join(ChatSession, ChatSession.id == session_col).where(ChatSession.project_id == project_id)
-    return stmt
+    return scope(stmt, project_id, device, session_col)
 
 
 # --------------------------------------------------------------------------- categories
 
 @router.get("/categories")
-def categories(db: DB, days: int = Days, project_id: int | None = None):
+def categories(db: DB, days: int = Days, project_id: int | None = None, device: str | None = None):
     cat = func.coalesce(Turn.category, "uncategorized").label("category")
     base = select(cat, *usage_columns()).join(Turn, Turn.id == ApiCall.turn_id)
-    rows = db.execute(_scope(base, ApiCall.ts, days, project_id, ApiCall.session_id).group_by(cat)).all()
+    rows = db.execute(_scope(base, ApiCall.ts, days, project_id, ApiCall.session_id, device).group_by(cat)).all()
 
     turn_counts = dict(db.execute(
-        _scope(select(cat, func.count(Turn.id)), Turn.ts, days, project_id, Turn.session_id).group_by(cat)).all())
+        _scope(select(cat, func.count(Turn.id)), Turn.ts, days, project_id, Turn.session_id, device).group_by(cat)).all())
 
     day = day_bucket(db, ApiCall.ts).label("day")
     daily = db.execute(_scope(
         select(day, cat, func.coalesce(func.sum(ApiCall.cost_usd), 0.0).label("cost_usd"))
-        .join(Turn, Turn.id == ApiCall.turn_id), ApiCall.ts, days, project_id, ApiCall.session_id)
+        .join(Turn, Turn.id == ApiCall.turn_id), ApiCall.ts, days, project_id, ApiCall.session_id, device)
         .group_by(day, cat).order_by(day)).all()
 
     by_cat = []
@@ -103,9 +101,9 @@ def reclassify():
 # --------------------------------------------------------------------------- tools
 
 @router.get("/tools")
-def tools(db: DB, days: int = Days, project_id: int | None = None):
+def tools(db: DB, days: int = Days, project_id: int | None = None, device: str | None = None):
     def scoped(stmt):
-        return _scope(stmt, ToolCall.ts, days, project_id, ToolCall.session_id)
+        return _scope(stmt, ToolCall.ts, days, project_id, ToolCall.session_id, device)
 
     errors = func.sum(case((ToolCall.is_error, 1), else_=0))
     result_chars = func.coalesce(func.sum(ToolCall.result_chars), 0)
@@ -151,9 +149,9 @@ def tools(db: DB, days: int = Days, project_id: int | None = None):
 # --------------------------------------------------------------------------- cache
 
 @router.get("/cache")
-def cache(db: DB, days: int = Days, project_id: int | None = None):
+def cache(db: DB, days: int = Days, project_id: int | None = None, device: str | None = None):
     by_model = db.execute(_scope(select(ApiCall.model, *usage_columns()), ApiCall.ts, days, project_id,
-                                 ApiCall.session_id).group_by(ApiCall.model)).all()
+                                 ApiCall.session_id, device).group_by(ApiCall.model)).all()
     totals = {"cache_read": 0, "cache_write": 0, "input_tokens": 0, "saved_usd": 0.0, "read_usd": 0.0,
               "write_usd": 0.0}
     for r in by_model:
@@ -171,7 +169,7 @@ def cache(db: DB, days: int = Days, project_id: int | None = None):
     prompt_side = totals["cache_read"] + totals["cache_write"] + totals["input_tokens"]
     totals["hit_ratio"] = round(totals["cache_read"] / prompt_side, 4) if prompt_side else None
 
-    ev = _scope(select(SessionEvent), SessionEvent.ts, days, project_id, SessionEvent.session_id)
+    ev = _scope(select(SessionEvent), SessionEvent.ts, days, project_id, SessionEvent.session_id, device)
     events = db.scalars(ev.where(SessionEvent.kind == "cache_rebuild").order_by(desc(SessionEvent.ts))).all()
     by_cause: dict[str, dict] = {}
     per_session: dict[str, dict] = defaultdict(lambda: {"rebuilds": 0, "tokens": 0, "wasted_usd": 0.0})
@@ -191,7 +189,7 @@ def cache(db: DB, days: int = Days, project_id: int | None = None):
     contexts = db.execute(_scope(
         select(ApiCall.session_id, func.avg(ctx).label("avg"), func.max(ctx).label("max"),
                func.count(ApiCall.id).label("calls"))
-        .where(ApiCall.is_sidechain.is_(False)), ApiCall.ts, days, project_id, ApiCall.session_id)
+        .where(ApiCall.is_sidechain.is_(False)), ApiCall.ts, days, project_id, ApiCall.session_id, device)
         .group_by(ApiCall.session_id).order_by(desc("avg")).limit(15)).all()
     titles = {s.id: s.title for s in db.scalars(select(ChatSession).where(
         ChatSession.id.in_({e.session_id for e in events} | {c.session_id for c in contexts})))}
@@ -213,9 +211,9 @@ def cache(db: DB, days: int = Days, project_id: int | None = None):
 # --------------------------------------------------------------------------- usage blocks
 
 @router.get("/limits")
-def limits(db: DB, days: int = Query(30, ge=1, le=365), project_id: int | None = None):
+def limits(db: DB, days: int = Query(30, ge=1, le=365), project_id: int | None = None, device: str | None = None):
     """5-hour usage blocks (approximation of subscription windows), burn rate and a weekday x hour heatmap."""
-    return compute_limits(db, days, project_id)
+    return compute_limits(db, days, project_id, device)
 
 
 # --------------------------------------------------------------------------- insights

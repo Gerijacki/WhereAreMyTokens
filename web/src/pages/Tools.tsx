@@ -8,10 +8,10 @@ import { FilterBar, useFilters } from "../filters";
 import { pct, tokens, truncate } from "../format";
 
 export default function Tools() {
-  const { days, projectId } = useFilters();
+  const { days, projectId, device } = useFilters();
   const q = useQuery({
-    queryKey: ["tools", days, projectId],
-    queryFn: () => get<ToolsData>("/tools", { days, project_id: projectId }),
+    queryKey: ["tools", days, projectId, device],
+    queryFn: () => get<ToolsData>("/tools", { days, project_id: projectId, device }),
   });
   return (
     <div className="space-y-4">

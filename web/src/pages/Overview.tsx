@@ -20,14 +20,14 @@ const KINDS = [
 ] as const;
 
 export default function Overview() {
-  const { days, projectId } = useFilters();
+  const { days, projectId, device } = useFilters();
   const q = useQuery({
-    queryKey: ["overview", days, projectId],
-    queryFn: () => get<OverviewData>("/overview", { days, project_id: projectId }),
+    queryKey: ["overview", days, projectId, device],
+    queryFn: () => get<OverviewData>("/overview", { days, project_id: projectId, device }),
   });
   const top = useQuery({
-    queryKey: ["top-turns", days, projectId],
-    queryFn: () => get<TopTurn[]>("/turns/top", { days, project_id: projectId, limit: 10 }),
+    queryKey: ["top-turns", days, projectId, device],
+    queryFn: () => get<TopTurn[]>("/turns/top", { days, project_id: projectId, device, limit: 10 }),
   });
 
   return (
@@ -186,10 +186,19 @@ function OverviewBody({ data, top }: { data: OverviewData; top: TopTurn[] }) {
             </table>
           </div>
         </Card>
-        <Card title="Main thread vs subagents">
-          <ThreadRow label="Main thread" cost={main?.cost_usd ?? 0} total={t.cost_usd} calls={main?.api_calls ?? 0} />
-          <ThreadRow label="Subagents" cost={sub?.cost_usd ?? 0} total={t.cost_usd} calls={sub?.api_calls ?? 0} />
-        </Card>
+        <div className="space-y-3">
+          <Card title="Main thread vs subagents">
+            <ThreadRow label="Main thread" cost={main?.cost_usd ?? 0} total={t.cost_usd} calls={main?.api_calls ?? 0} />
+            <ThreadRow label="Subagents" cost={sub?.cost_usd ?? 0} total={t.cost_usd} calls={sub?.api_calls ?? 0} />
+          </Card>
+          {data.by_device.length > 1 && (
+            <Card title="By device" subtitle="Machines sending usage with wamt agent">
+              {data.by_device.map((d) => (
+                <ThreadRow key={d.device} label={d.device} cost={d.cost_usd} total={t.cost_usd} calls={d.api_calls} />
+              ))}
+            </Card>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">

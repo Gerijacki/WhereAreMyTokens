@@ -8,10 +8,10 @@ import { InsightCard } from "../pages/Insights";
 import { Card, Empty } from "./ui";
 
 export function CategoryBreakdown() {
-  const { days, projectId } = useFilters();
+  const { days, projectId, device } = useFilters();
   const q = useQuery({
-    queryKey: ["categories", days, projectId],
-    queryFn: () => get<CategoriesData>("/categories", { days, project_id: projectId }),
+    queryKey: ["categories", days, projectId, device],
+    queryFn: () => get<CategoriesData>("/categories", { days, project_id: projectId, device }),
   });
   const rows = q.data?.by_category ?? [];
   const total = rows.reduce((a, c) => a + c.cost_usd, 0) || 1;

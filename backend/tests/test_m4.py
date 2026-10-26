@@ -150,6 +150,37 @@ def test_agent_queues_while_offline_and_survives_deleted_transcripts(env, tmp_pa
         assert db.scalar(select(func.count(Turn.id))) == 2
 
 
+def test_filter_by_device(env, tmp_path):
+    import re
+
+    laptop, desktop = tmp_path / "laptop", tmp_path / "desktop"
+    shutil.copytree(FIXTURES, laptop)
+    shutil.copytree(FIXTURES, desktop)
+    for f in desktop.rglob("*.jsonl"):  # same work, other ids: a second machine
+        f.write_text(re.sub(r'"(id|sessionId|uuid|parentUuid|tool_use_id)":"', r'"\1":"b_', f.read_text()))
+    scan(laptop, "laptop")
+    scan(desktop, "desktop")
+    c = client()
+
+    sources = c.get("/api/sources?days=0").json()
+    assert sorted(s["device"] for s in sources) == ["desktop", "laptop"]
+    assert all(s["sessions"] == 1 and s["output_tokens"] == 160 for s in sources)
+
+    both = c.get("/api/overview?days=0").json()
+    one = c.get("/api/overview?days=0&device=laptop").json()
+    assert both["totals"]["output_tokens"] == 320 and one["totals"]["output_tokens"] == 160
+    assert one["totals"]["prompts"] == 2 and both["totals"]["prompts"] == 4
+    assert sorted(d["device"] for d in both["by_device"]) == ["desktop", "laptop"]
+
+    assert [s["device"] for s in c.get("/api/sessions?days=0&device=desktop").json()] == ["desktop"]
+    assert len(c.get("/api/turns/top?days=0&device=laptop").json()) == 2
+    for path in ("categories", "tools", "cache"):
+        assert c.get(f"/api/{path}?days=0&device=laptop").json() != c.get(f"/api/{path}?days=0").json(), path
+    assert c.get("/api/limits?days=365&device=nope").json()["blocks"] == []
+    rows = c.get("/api/export/sessions.json?days=0&device=laptop").json()
+    assert [r["device"] for r in rows] == ["laptop"]
+
+
 def test_store_prompts_off_keeps_length_and_category(env, tmp_path):
     env(store_prompts="false")
     root = tmp_path / "projects"

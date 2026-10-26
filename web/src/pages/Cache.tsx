@@ -13,10 +13,10 @@ function gap(seconds: number | null): string {
 }
 
 export default function Cache() {
-  const { days, projectId } = useFilters();
+  const { days, projectId, device } = useFilters();
   const q = useQuery({
-    queryKey: ["cache", days, projectId],
-    queryFn: () => get<CacheData>("/cache", { days, project_id: projectId }),
+    queryKey: ["cache", days, projectId, device],
+    queryFn: () => get<CacheData>("/cache", { days, project_id: projectId, device }),
   });
   return (
     <div className="space-y-4">

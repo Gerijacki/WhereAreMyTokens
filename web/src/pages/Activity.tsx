@@ -10,14 +10,14 @@ import { continuousDays, pct, tokens, money } from "../format";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function Activity() {
-  const { days, projectId } = useFilters();
+  const { days, projectId, device } = useFilters();
   const cats = useQuery({
-    queryKey: ["categories", days, projectId],
-    queryFn: () => get<CategoriesData>("/categories", { days, project_id: projectId }),
+    queryKey: ["categories", days, projectId, device],
+    queryFn: () => get<CategoriesData>("/categories", { days, project_id: projectId, device }),
   });
   const limits = useQuery({
-    queryKey: ["limits", days, projectId],
-    queryFn: () => get<LimitsData>("/limits", { days: days || 365, project_id: projectId }),
+    queryKey: ["limits", days, projectId, device],
+    queryFn: () => get<LimitsData>("/limits", { days: days || 365, project_id: projectId, device }),
   });
 
   return (

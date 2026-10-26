@@ -22,6 +22,12 @@ export interface Overview {
   daily: (Usage & { day: string })[];
   daily_by_model: { day: string; model: string; cost_usd: number }[];
   by_thread: (Usage & { thread: "main" | "subagents" })[];
+  by_device: (Usage & { device: string })[];
+}
+
+export interface SourceRow extends Usage {
+  device: string;
+  sessions: number;
 }
 
 export interface ProjectRow extends Usage {
@@ -36,6 +42,7 @@ export interface SessionRow extends Usage {
   title: string | null;
   project_id: number;
   project: string | null;
+  device: string;
   git_branch: string | null;
   entrypoint: string | null;
   version: string | null;

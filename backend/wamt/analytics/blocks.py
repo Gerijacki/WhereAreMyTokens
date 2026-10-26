@@ -7,9 +7,9 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from wamt.api.queries import since
+from wamt.api.queries import scope, since
 from wamt.config import get_settings
-from wamt.db import ApiCall, ChatSession
+from wamt.db import ApiCall
 
 BLOCK_HOURS = 5
 
@@ -18,16 +18,14 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
-def _scope(stmt, days: int, project_id: int | None):
+def _scope(stmt, days: int, project_id: int | None, device: str | None):
     start = since(days)
     if start is not None:
         stmt = stmt.where(ApiCall.ts >= start)
-    if project_id is not None:
-        stmt = stmt.join(ChatSession, ChatSession.id == ApiCall.session_id).where(ChatSession.project_id == project_id)
-    return stmt
+    return scope(stmt, project_id, device, ApiCall.session_id)
 
 
-def compute_limits(db: Session, days: int = 30, project_id: int | None = None) -> dict:
+def compute_limits(db: Session, days: int = 30, project_id: int | None = None, device: str | None = None) -> dict:
     """5-hour usage blocks (approximation of subscription windows), burn rate and a weekday x hour heatmap.
 
     A block starts at the hour of the first request after the previous block ended and lasts
@@ -38,7 +36,7 @@ def compute_limits(db: Session, days: int = 30, project_id: int | None = None) -
     total_tokens = ApiCall.input_tokens + ApiCall.output_tokens + ApiCall.cache_write_5m + ApiCall.cache_write_1h
     rows = db.execute(_scope(
         select(ApiCall.ts, ApiCall.cost_usd, total_tokens.label("tokens"), ApiCall.cache_read, ApiCall.output_tokens)
-        .order_by(ApiCall.ts), days, project_id)).all()
+        .order_by(ApiCall.ts), days, project_id, device)).all()
 
     blocks: list[dict] = []
     heat = [[0.0] * 24 for _ in range(7)]
