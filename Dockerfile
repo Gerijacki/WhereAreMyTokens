@@ -3,7 +3,7 @@
 # ---- Dashboard build ----
 # Static files, the same for every architecture: build once, natively, instead of under QEMU emulation
 # for arm64 (much slower, and it can hang).
-FROM --platform=$BUILDPLATFORM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26-alpine AS web
 WORKDIR /web
 RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml ./
