@@ -4,7 +4,9 @@ services:
     image: ghcr.io/gerijacki/wherearemytokens:latest
     restart: unless-stopped
     ports:
-      - "${WAMT_PORT:-8787}:8787"
+      # Localhost only by default. Set WAMT_BIND=0.0.0.0 to reach it from your network, and set
+      # WAMT_AUTH_PASSWORD (or put an authenticating proxy in front) when you do.
+      - "${WAMT_BIND:-127.0.0.1}:${WAMT_PORT:-8787}:8787"
     env_file:
       - path: .env
         required: false
@@ -22,6 +24,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: wamt
+      # The database is not published on the host; set a real password anyway if you expose it.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wamt}
       POSTGRES_DB: wamt
     volumes:

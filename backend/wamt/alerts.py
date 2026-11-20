@@ -14,6 +14,7 @@ import logging
 import time
 import urllib.request
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -32,6 +33,8 @@ def send(title: str, message: str, url: str | None = None) -> None:
     url = url or get_settings().alert_url
     if not url:
         return
+    if urlparse(url).scheme not in ("http", "https"):  # urllib would also open file: and ftp: URLs
+        raise ValueError("WAMT_ALERT_URL must start with http:// or https://")
     link = get_settings().public_url
     if "discord.com/api/webhooks" in url or "discordapp.com/api/webhooks" in url:
         body, headers = {"content": f"**{title}**\n{message}"}, {"Content-Type": "application/json"}

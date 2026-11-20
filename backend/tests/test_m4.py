@@ -301,3 +301,72 @@ def test_pre_alembic_database_is_stamped_and_upgraded(tmp_path):
     insp = inspect(create_engine(url))
     assert {"devices", "otel_points", "insights", "alembic_version"} <= set(insp.get_table_names())
     assert "signature" in {c["name"] for c in insp.get_columns("tool_calls")}
+
+
+def test_security_headers_on_every_answer(env):
+    r = client().get("/api/health")
+    assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["x-frame-options"] == "DENY"
+    env(auth_password="s3cret")
+    assert client().get("/api/overview").headers["x-content-type-options"] == "nosniff"  # 401s too
+
+
+def test_body_limit(env):
+    env(max_body_mb="0.001")
+    c = client()
+    big = {"files": [{"path": "p/s.jsonl", "records": [{"x": "y" * 2000}]}]}
+    assert c.post("/api/ingest", json=big).status_code == 413
+    streamed = c.post("/api/ingest", content=iter([b"x" * 800, b"y" * 800]),
+                      headers={"content-type": "application/json"})
+    assert streamed.status_code == 413
+    assert c.get("/api/health").status_code == 200
+
+
+def test_login_lockout_after_repeated_failures(env, monkeypatch):
+    async def no_sleep(_):
+        return None
+
+    monkeypatch.setattr(auth.asyncio, "sleep", no_sleep)
+    auth._failures.clear()
+    env(auth_password="s3cret", login_max_attempts="3")
+    c = client()
+    assert [c.post("/api/auth/login", json={"password": "bad"}).status_code for _ in range(3)] == [401] * 3
+    locked = c.post("/api/auth/login", json={"password": "s3cret"})  # even the right one waits
+    assert locked.status_code == 429 and int(locked.headers["retry-after"]) > 0
+    auth._failures.clear()
+    assert c.post("/api/auth/login", json={"password": "s3cret"}).status_code == 200
+
+
+def test_proxy_header_only_from_trusted_ips(env):
+    env(auth_password="x", trust_proxy_auth_header="Remote-User", trusted_proxy_ips="10.0.0.0/8")
+    c = client()  # TestClient peers as "testclient", which is not in the allowed range
+    assert c.get("/api/overview", headers={"Remote-User": "mallory"}).status_code == 401
+    env(trusted_proxy_ips="testclient, 10.0.0.0/8, not-an-ip")
+    # a non-IP peer never matches, even when listed
+    assert c.get("/api/overview", headers={"Remote-User": "mallory"}).status_code == 401
+
+
+def test_metrics_follow_dashboard_auth_without_a_token(env):
+    env(auth_password="s3cret")
+    c = client()
+    assert c.get("/metrics").status_code == 401
+    c.post("/api/auth/login", json={"password": "s3cret"})
+    assert c.get("/metrics").status_code == 200
+    env(metrics_token="m")  # a scraper token is enough on its own
+    assert client().get("/metrics", headers={"Authorization": "Bearer m"}).status_code == 200
+
+
+def test_alert_url_must_be_http(env):
+    with pytest.raises(ValueError):
+        alerts.send("t", "m", url="file:///etc/passwd")
+
+
+def test_ingest_rejects_too_many_files(env):
+    from wamt import devices
+
+    with new_session() as db:
+        token = devices.create(db, "laptop")
+    body = {"files": [{"path": f"p/{i}.jsonl", "records": []} for i in range(501)]}
+    r = client().post("/api/ingest", json=body, headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 413

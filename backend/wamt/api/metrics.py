@@ -3,12 +3,13 @@
 import hmac
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from wamt.analytics.blocks import compute_limits
+from wamt.auth import is_authenticated
 from wamt.collector.ingest import STATUS
 from wamt.config import get_settings
 from wamt.db import ApiCall, Insight, get_db
@@ -24,10 +25,13 @@ def _label(v: str) -> str:
 
 
 @router.get("/metrics", response_class=PlainTextResponse, include_in_schema=False)
-def metrics(db: DB, authorization: Annotated[str | None, Header()] = None):
+def metrics(request: Request, db: DB, authorization: Annotated[str | None, Header()] = None):
     token = get_settings().metrics_token
-    if token and not hmac.compare_digest(authorization or "", f"Bearer {token}"):
-        raise HTTPException(401, "Bearer token required")
+    if token:
+        if not hmac.compare_digest((authorization or "").encode(), f"Bearer {token}".encode()):
+            raise HTTPException(401, "Bearer token required")
+    elif not is_authenticated(request):  # no token: /metrics is as private as the dashboard
+        raise HTTPException(401, "Login required, or set WAMT_METRICS_TOKEN for scrapers")
 
     lines: list[str] = []
 

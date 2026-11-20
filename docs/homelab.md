@@ -13,14 +13,19 @@ exposing it to the internet. A LAN address or a domain behind a reverse proxy wo
 git clone https://github.com/Gerijacki/WhereAreMyTokens.git && cd WhereAreMyTokens
 cat > .env <<'EOF'
 POSTGRES_PASSWORD=change-me
+# Compose publishes the port on localhost only by default. Listen on the network so agents can reach it.
+WAMT_BIND=0.0.0.0
+# Set a password: without one, anyone who can reach the port can read the data and add devices.
+WAMT_AUTH_PASSWORD=pick-a-long-passphrase
 # The server has no Claude Code transcripts of its own: only agents send data.
 WAMT_INGEST_ENABLED=false
 EOF
 docker compose up -d
 ```
 
-Open `http://<homelab>:8787` (with Tailscale MagicDNS, the machine name, or its `100.x.y.z` address). Anyone on your
-tailnet can reach it, so set a password in *Settings → Security* if that tailnet is shared.
+Open `http://<homelab>:8787` (with Tailscale MagicDNS, the machine name, or its `100.x.y.z` address). Agents use
+device tokens, so the dashboard password never leaves the browser. With Tailscale you can instead set
+`WAMT_BIND` to the server's `100.x.y.z` address so the port is not open on your LAN.
 
 If the server is also one of the computers you use Claude Code on, leave `WAMT_INGEST_ENABLED` unset: it reads its
 own transcripts (as the device `local`) and you need agents only on the other machines.

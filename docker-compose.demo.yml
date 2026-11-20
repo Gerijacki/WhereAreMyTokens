@@ -6,5 +6,5 @@ services:
   demo:
     build: .
     ports:
-      - "${WAMT_DEMO_PORT:-8788}:8787"
+      - "127.0.0.1:${WAMT_DEMO_PORT:-8788}:8787"
     command: ["demo"]

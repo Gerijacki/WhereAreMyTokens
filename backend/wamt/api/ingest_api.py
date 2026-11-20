@@ -15,6 +15,8 @@ from wamt.db import Device, get_db
 router = APIRouter(prefix="/api")
 DB = Annotated[Session, Depends(get_db)]
 MAX_RECORDS = 5000
+MAX_FILES = 500
+MAX_PATH = 512
 
 
 def require_device(db: DB, authorization: Annotated[str | None, Header()] = None) -> Device:
@@ -36,12 +38,12 @@ class IngestRequest(BaseModel):
 @router.post("/ingest")
 def ingest(body: IngestRequest, db: DB, device: Annotated[Device, Depends(require_device)]):
     total = sum(len(f.records) for f in body.files)
-    if total > MAX_RECORDS:
-        raise HTTPException(413, f"At most {MAX_RECORDS} records per request")
+    if total > MAX_RECORDS or len(body.files) > MAX_FILES:
+        raise HTTPException(413, f"At most {MAX_RECORDS} records in {MAX_FILES} files per request")
     accepted = 0
     for f in body.files:
         parts = f.path.replace("\\", "/").split("/")
-        if len(parts) < 2 or ".." in parts:
+        if len(parts) < 2 or ".." in parts or len(f.path) > MAX_PATH:
             raise HTTPException(422, f"Invalid path: {f.path}")
         batch = Batch()
         for record in f.records:

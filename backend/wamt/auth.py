@@ -19,6 +19,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import ipaddress
+import logging
 import secrets
 import time
 from functools import lru_cache
@@ -31,6 +33,7 @@ from starlette.responses import JSONResponse
 from wamt.config import get_settings
 from wamt.db import Meta, get_meta, new_session, set_meta
 
+log = logging.getLogger(__name__)
 COOKIE = "wamt_session"
 PASSWORD_META = "auth_password_hash"
 MIN_PASSWORD = 8
@@ -112,13 +115,60 @@ def auth_required() -> bool:
     return password_source() != "none"
 
 
+def _from_trusted_proxy(request: Request) -> bool:
+    """With WAMT_TRUSTED_PROXY_IPS set, only those peers may vouch for a user via the proxy header."""
+    allowed = get_settings().trusted_proxy_ips
+    if not allowed:
+        return True
+    try:
+        peer = ipaddress.ip_address(request.client.host) if request.client else None
+    except ValueError:
+        return False
+    nets = []
+    for item in allowed.split(","):
+        if item.strip():
+            try:
+                nets.append(ipaddress.ip_network(item.strip(), strict=False))
+            except ValueError:
+                log.warning("Ignoring invalid WAMT_TRUSTED_PROXY_IPS entry %r", item)
+    return peer is not None and any(peer in n for n in nets)
+
+
 def is_authenticated(request: Request) -> bool:
     s = get_settings()
     if not auth_required():
         return True
-    if s.trust_proxy_auth_header and request.headers.get(s.trust_proxy_auth_header):
+    if (s.trust_proxy_auth_header and request.headers.get(s.trust_proxy_auth_header)
+            and _from_trusted_proxy(request)):
         return True
     return valid_cookie(request.cookies.get(COOKIE))
+
+
+# Failed logins per client IP: ip -> (count, window start). In memory, so a restart clears it.
+_failures: dict[str, tuple[int, float]] = {}
+LOCKOUT_SECONDS = 15 * 60
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _locked_out(ip: str) -> int:
+    """Seconds left on the lockout for this client, or 0."""
+    count, since = _failures.get(ip, (0, 0.0))
+    left = since + LOCKOUT_SECONDS - time.monotonic()
+    if count >= get_settings().login_max_attempts and left > 0:
+        return int(left) + 1
+    if left <= 0:
+        _failures.pop(ip, None)
+    return 0
+
+
+def _record_failure(ip: str) -> None:
+    count, since = _failures.get(ip, (0, time.monotonic()))
+    _failures[ip] = (count + 1, since)
+    if len(_failures) > 10_000:  # bounded memory under a spray of spoofed sources
+        _failures.pop(next(iter(_failures)))
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -141,18 +191,24 @@ def status(request: Request):
 
 
 def _start_session(request: Request, response: Response) -> None:
-    days = get_settings().session_days
-    response.set_cookie(COOKIE, _sign(int(time.time()) + days * 86400), max_age=days * 86400, httponly=True,
-                        samesite="lax", secure=request.url.scheme == "https")
+    s = get_settings()
+    secure = s.cookie_secure if s.cookie_secure is not None else request.url.scheme == "https"
+    response.set_cookie(COOKIE, _sign(int(time.time()) + s.session_days * 86400), max_age=s.session_days * 86400,
+                        httponly=True, samesite="lax", secure=secure)
 
 
 @router.post("/login")
 async def login(body: Login, request: Request, response: Response):
     if not auth_required():
         return {"authenticated": True}
+    ip = _client_ip(request)
+    if wait := _locked_out(ip):
+        raise HTTPException(429, "Too many wrong passwords. Try again later.", headers={"Retry-After": str(wait)})
     if not check_password(body.password):
+        _record_failure(ip)
         await asyncio.sleep(1.0)  # slow down guessing
         raise HTTPException(401, "Wrong password")
+    _failures.pop(ip, None)
     _start_session(request, response)
     return {"authenticated": True}
 
@@ -169,9 +225,15 @@ class PasswordRemoval(BaseModel):
 async def _require_current(request: Request, current: str | None) -> None:
     if password_source() == "env":
         raise HTTPException(409, "The password is set with WAMT_AUTH_PASSWORD; change it there")
-    if password_source() == "ui" and not (is_authenticated(request) and current and check_password(current)):
-        await asyncio.sleep(1.0)
-        raise HTTPException(403, "Current password is wrong")
+    if password_source() == "ui":
+        ip = _client_ip(request)
+        if wait := _locked_out(ip):
+            raise HTTPException(429, "Too many wrong passwords. Try again later.",
+                                headers={"Retry-After": str(wait)})
+        if not (is_authenticated(request) and current and check_password(current)):
+            _record_failure(ip)
+            await asyncio.sleep(1.0)
+            raise HTTPException(403, "Current password is wrong")
 
 
 def _save_hash(value: str | None) -> None:

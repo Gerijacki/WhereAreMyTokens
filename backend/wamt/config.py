@@ -37,7 +37,13 @@ class Settings(BaseSettings):
     trust_proxy_auth_header: str | None = None  # e.g. "Remote-User" set by Authelia/oauth2-proxy
     secret_key: str | None = None  # signs session cookies; generated and stored in the DB if unset
     session_days: int = 30
-    metrics_token: str | None = None  # protects /metrics when set
+    metrics_token: str | None = None  # protects /metrics; without it, /metrics follows the dashboard auth
+    # Comma-separated IPs/CIDRs of the reverse proxies allowed to set trust_proxy_auth_header.
+    # Unset = any client may (only safe when the port is reachable by the proxy alone).
+    trusted_proxy_ips: str | None = None
+    cookie_secure: bool | None = None  # force the Secure cookie flag; unset = only on https requests
+    login_max_attempts: int = 5  # wrong passwords per client IP before a 15 minute lockout
+    max_body_mb: float = 25.0  # largest accepted request body (ingest, OTLP, settings)
 
     # Alerts
     alert_url: str | None = None  # ntfy topic URL, Discord/Slack webhook, or any JSON webhook
