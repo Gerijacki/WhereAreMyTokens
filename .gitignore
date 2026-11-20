@@ -15,3 +15,11 @@ web/dist/
 web/e2e/.data/
 test-results/
 playwright-report/
+*.sqlite
+*.sqlite3
+agent-state.json
+spool/
+.claude/
+# Real transcripts must never be committed; only the synthetic fixtures are allowed.
+*.jsonl
+!backend/tests/fixtures/**/*.jsonl

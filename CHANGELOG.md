@@ -2,6 +2,31 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **Compose now publishes the dashboard on `127.0.0.1` only** (and the README and demo commands too). To reach it from another computer set `WAMT_BIND=0.0.0.0` and a password; see [docs/operations.md](docs/operations.md). Update your `.env` if you used the server from your network.
+- `/metrics` needs the dashboard session when a password is set and `WAMT_METRICS_TOKEN` is not. Scrapers: set the token.
+- Login is locked per IP for 15 minutes after `WAMT_LOGIN_MAX_ATTEMPTS` (5) wrong passwords.
+
+### Added
+
+- Security headers on every response (CSP, `nosniff`, no framing, no referrer) and a request size limit (`WAMT_MAX_BODY_MB`, 25 by default).
+- `WAMT_TRUSTED_PROXY_IPS`: only those peers may vouch for a user through `WAMT_TRUST_PROXY_AUTH_HEADER`. `WAMT_COOKIE_SECURE` forces the Secure cookie flag. A startup warning when no authentication is configured.
+- Accessibility: skip link, visible keyboard focus everywhere, a page title per route, labelled login form, announced loading and error states, an error boundary, a not-found page, and every chart also available as a table for screen readers. Muted text and primary buttons meet WCAG AA contrast. Motion respects `prefers-reduced-motion`. The e2e suite now runs axe on every page in both themes.
+- First-run help on the Overview when no transcripts have been found.
+- [docs/operations.md](docs/operations.md): reverse proxy and TLS, backup and restore, upgrades.
+
+### Fixed
+
+- Alert URLs must be `http(s)`. Ingest rejects requests with too many files or very long paths.
+- The sign-in status check fails closed on a server error instead of showing the dashboard.
+
+### Internal
+
+- GitHub Actions are pinned by commit SHA. Releases need the tag to match `pyproject.toml` and `package.json`, and CI to have passed on the commit; the release jobs have least-privilege permissions. A test fails when the models and the Alembic revisions drift apart.
+
 ## [0.4.0] - 2026-10-26
 
 One dashboard for several computers. To get everything, update the server image and the agent on every computer: the

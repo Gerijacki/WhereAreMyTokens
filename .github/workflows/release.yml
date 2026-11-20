@@ -6,25 +6,41 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   image:
     name: Publish image to GHCR
     runs-on: ubuntu-latest
     timeout-minutes: 30  # a normal multi-arch build takes ~7 min; fail fast if emulation hangs
+    permissions:
+      contents: read
+      packages: write
+      actions: read  # to look up the CI result of this commit
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Tag matches the packaged versions and CI passed on this commit
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${TAG#v}"
+          py=$(sed -nE 's/^version = "([^"]+)".*/\1/p' backend/pyproject.toml | head -1)
+          js=$(sed -nE 's/^ *"version": "([^"]+)".*/\1/p' web/package.json | head -1)
+          [ "$py" = "$version" ] || { echo "::error::backend/pyproject.toml is $py, tag is $version"; exit 1; }
+          [ "$js" = "$version" ] || { echo "::error::web/package.json is $js, tag is $version"; exit 1; }
+          ok=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --status success --json conclusion --jq length)
+          [ "${ok:-0}" -gt 0 ] || { echo "::error::CI has not passed on $GITHUB_SHA"; exit 1; }
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -35,7 +51,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=WhereAreMyTokens
             org.opencontainers.image.description=Self-hosted analytics for Claude Code subscriptions
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -50,8 +66,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: image
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # create the release
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Release notes from the changelog
         env:
           REPO: ${{ github.repository }}
@@ -66,7 +84,7 @@ jobs:
             printf '\nSetup, configuration and the homelab guide are in the [README](https://github.com/%s#readme).\n' "$REPO"
           } > notes.md
           cat notes.md
-      - uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           generate_release_notes: true
           body_path: notes.md

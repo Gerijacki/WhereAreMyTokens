@@ -57,7 +57,7 @@ Open **http://localhost:8787**. The first start imports your whole history (a fe
 Prefer a single container with SQLite instead of PostgreSQL? Mount your transcripts and a volume for the history:
 
 ```bash
-docker run -d --name wamt -p 8787:8787 -v ~/.claude/projects:/data/claude:ro -v wamt-data:/data/wamt \
+docker run -d --name wamt -p 127.0.0.1:8787:8787 -v ~/.claude/projects:/data/claude:ro -v wamt-data:/data/wamt \
   ghcr.io/gerijacki/wherearemytokens
 ```
 
@@ -175,7 +175,8 @@ A step-by-step guide for a homelab with several computers, over Tailscale: [docs
 ### Access control
 
 - **A dashboard password**, set in *Settings → Security* (stored as a salted scrypt hash) or with `WAMT_AUTH_PASSWORD`, which takes precedence and can't be changed from the UI. You get a login page and a signed session cookie; changing or removing the password signs every other browser out.
-- `WAMT_TRUST_PROXY_AUTH_HEADER=Remote-User`: trust Authelia, oauth2-proxy, Cloudflare Access and similar.
+- `WAMT_TRUST_PROXY_AUTH_HEADER=Remote-User`: trust Authelia, oauth2-proxy, Cloudflare Access and similar. Also set `WAMT_TRUSTED_PROXY_IPS` to the proxy's address so nobody else can send that header.
+- Compose listens on `127.0.0.1` only. Set `WAMT_BIND=0.0.0.0` to open it to your network, together with a password. Reverse proxy, TLS, backup and upgrade notes: [docs/operations.md](docs/operations.md).
 - Agents and OpenTelemetry authenticate with device tokens, which you can create and revoke in *Settings → Devices* or with `wamt device`. `/metrics` can require `WAMT_METRICS_TOKEN`.
 
 ### Settings and environment variables
