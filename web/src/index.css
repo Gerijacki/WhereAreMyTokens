@@ -10,9 +10,10 @@
   --border: #e2e0d9;
   --text-primary: #0b0b0b;
   --text-secondary: #52514e;
-  --text-muted: #7a7974;
+  --text-muted: #66655f;
   --grid: #e8e6df;
   --accent: #2a78d6;
+  --accent-fill: #2468bd; /* behind white text: 5.5:1 in both themes */
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
@@ -190,19 +191,34 @@ body {
   color: var(--text-primary);
 }
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: #fff;
 }
 .btn-primary:hover {
   filter: brightness(1.08);
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
 }
-.input:focus-visible,
-.btn:focus-visible {
+:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
+}
+.seg button:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.seg button:focus-visible {
+  outline-offset: -2px; /* the segmented control clips overflow */
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 .input:disabled,
 .btn:disabled {

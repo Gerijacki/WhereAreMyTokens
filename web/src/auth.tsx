@@ -11,7 +11,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("wamt:unauthorized", recheck);
   }, [qc]);
   const q = useAuthStatus();
-  if (q.isLoading) return null;
+  if (q.isLoading) return <div role="status" className="muted text-sm p-6">Loading…</div>;
+  if (q.isError)
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div role="alert" className="card p-6 max-w-sm space-y-3">
+          <p className="text-sm">Can't reach the server to check the sign-in status.</p>
+          <button className="btn btn-primary" onClick={() => q.refetch()}>Try again</button>
+        </div>
+      </div>
+    );
   if (q.data && q.data.required && !q.data.authenticated) return <Login />;
   return <>{children}</>;
 }
@@ -26,51 +35,62 @@ function Login() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    setBusy(false);
-    if (res.ok) {
-      await qc.invalidateQueries();
-    } else {
-      setError("Wrong password");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) await qc.invalidateQueries();
+      else if (res.status === 401) setError("Wrong password");
+      else if (res.status === 429) setError("Too many attempts. Wait a few minutes and try again.");
+      else setError(`The server answered ${res.status}. Try again.`);
+    } catch {
+      setError("Can't reach the server.");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <main className="min-h-screen flex items-center justify-center px-4">
       <form onSubmit={submit} className="card p-6 w-full max-w-sm space-y-4">
         <div>
-          <div className="font-semibold tracking-tight">
-            <span style={{ color: "var(--accent)" }}>●</span> WhereAreMyTokens
-          </div>
+          <h1 className="font-semibold tracking-tight">
+            <span aria-hidden style={{ color: "var(--accent)" }}>●</span> WhereAreMyTokens
+          </h1>
           <p className="text-sm secondary mt-1">Enter the dashboard password.</p>
         </div>
+        <label htmlFor="login-password" className="block text-sm font-medium">Password</label>
         <input
+          id="login-password"
           type="password"
           autoFocus
           autoComplete="current-password"
-          aria-label="Password"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "login-error" : undefined}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full rounded-lg px-3 py-2 text-sm"
           style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
         />
-        {error && <p className="text-sm" style={{ color: "var(--critical)" }}>{error}</p>}
+        {error && <p id="login-error" role="alert" className="text-sm" style={{ color: "var(--critical)" }}>{error}</p>}
         <button type="submit" className="btn btn-primary w-full" disabled={busy || !password}>
           {busy ? "Checking…" : "Sign in"}
         </button>
       </form>
-    </div>
+    </main>
   );
 }
 
 export function useAuthStatus() {
   return useQuery({
     queryKey: ["auth"],
-    queryFn: async () => (await fetch("/api/auth/status")).json() as Promise<AuthStatus>,
+    queryFn: async () => {
+      const res = await fetch("/api/auth/status");
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`); // fail closed: never show the app unchecked
+      return (await res.json()) as AuthStatus;
+    },
     refetchInterval: false,
     staleTime: Infinity,
   });

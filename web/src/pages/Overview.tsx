@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { get, type Overview as OverviewData, type TopTurn } from "../api";
+import { get, type IngestStatus, type Overview as OverviewData, type TopTurn } from "../api";
 import { CategoryChip } from "../categories";
 import { Chart, axisStyle, baseOption, type Theme } from "../components/Chart";
 import { CategoryBreakdown, TopInsights } from "../components/OverviewExtras";
@@ -42,12 +42,42 @@ export default function Overview() {
       {q.isLoading && <Loading />}
       {q.error && <ErrorBox error={q.error} />}
       {q.data && (q.data.totals.api_calls === 0 ? (
-        <Empty>No usage in this range yet. The collector picks up new transcripts every few seconds.</Empty>
+        <NoUsage />
       ) : (
         <OverviewBody data={q.data} top={top.data ?? []} />
       ))}
       <TelemetryCard days={days} />
     </div>
+  );
+}
+
+/** First run (no transcripts found at all) gets setup help; an empty filter just says so. */
+function NoUsage() {
+  const ingest = useQuery({ queryKey: ["ingest"], queryFn: () => get<IngestStatus>("/ingest/status"), refetchInterval: 10_000 });
+  const s = ingest.data;
+  if (!s || s.files_seen > 0) {
+    return <Empty>No usage in this range yet. The collector picks up new transcripts every few seconds.</Empty>;
+  }
+  return (
+    <Card title="No transcripts found yet" subtitle="WhereAreMyTokens reads the files Claude Code writes as you work">
+      <ol className="text-sm secondary list-decimal pl-5 space-y-1.5">
+        {s.running ? (
+          <li>
+            Use Claude Code once, or point the collector at your history with <code className="num">CLAUDE_PROJECTS_DIR</code>
+            {" "}(Docker) or <code className="num">WAMT_CLAUDE_DATA_DIR</code>. It defaults to{" "}
+            <code className="num">~/.claude/projects</code>.
+          </li>
+        ) : (
+          <li>
+            This server only receives data from other computers (the collector is off). Create a device in{" "}
+            <Link to="/settings" className="underline">Settings</Link> and run <code className="num">wamt agent</code> there.
+          </li>
+        )}
+        <li>Just want to look around? Run the demo: <code className="num">docker run --rm -p 127.0.0.1:8788:8787 ghcr.io/gerijacki/wherearemytokens demo</code></li>
+        <li>This page refreshes by itself as soon as the first transcript is imported.</li>
+      </ol>
+      {s.last_error && <p role="alert" className="text-sm mt-3" style={{ color: "var(--critical)" }}>Last error: {s.last_error}</p>}
+    </Card>
   );
 }
 

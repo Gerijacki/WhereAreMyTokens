@@ -1,9 +1,10 @@
-import { StrictMode, type ReactNode } from "react";
+import { StrictMode, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { get, type IngestStatus, type SettingsData } from "./api";
 import { AuthGate, logout, useAuthStatus } from "./auth";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { dateTime, setCurrency } from "./format";
 import Activity from "./pages/Activity";
 import Cache from "./pages/Cache";
@@ -41,7 +42,7 @@ function Nav() {
     `px-3 py-1.5 rounded-lg text-sm whitespace-nowrap ${isActive ? "font-medium" : "secondary"}`;
   const style = ({ isActive }: { isActive: boolean }) => (isActive ? { background: "var(--surface-2)" } : undefined);
   return (
-    <nav className="flex gap-1 overflow-x-auto">
+    <nav aria-label="Main" className="flex gap-1 overflow-x-auto min-w-0">
       {PAGES.map((p) => (
         <NavLink key={p.to} to={`${p.to}${qs}`} end={p.to === "/"} className={link} style={style}>
           {p.label}
@@ -110,17 +111,47 @@ function SettingsGate({ children }: { children: ReactNode }) {
   const q = useQuery({ queryKey: ["settings"], queryFn: () => get<SettingsData>("/settings"), staleTime: Infinity,
     refetchInterval: false });
   if (q.data) setCurrency(q.data.currency, q.data.eur_per_usd);
-  else if (q.isLoading) return null;
+  else if (q.isLoading) return <div role="status" className="muted text-sm p-6">Loading…</div>;
   return <>{children}</>;
 }
 
+function NotFound() {
+  return (
+    <div className="card p-6 max-w-md space-y-2">
+      <h1 className="text-xl font-semibold">Page not found</h1>
+      <p className="text-sm secondary">Nothing lives at this address. Pick a page from the navigation above.</p>
+    </div>
+  );
+}
+
+const TITLES: Record<string, string> = Object.fromEntries(PAGES.map((p) => [p.to, p.label]));
+
+/** A single-page app doesn't reload on navigation: update the title and move focus so assistive tech notices. */
+function RouteEffects({ main }: { main: RefObject<HTMLElement | null> }) {
+  const { pathname } = useLocation();
+  const first = useRef(true);
+  useEffect(() => {
+    const section = TITLES[pathname] ?? (pathname.startsWith("/sessions/") ? "Session" : "Not found");
+    document.title = `${section} · WhereAreMyTokens`;
+    if (first.current) first.current = false;
+    else main.current?.focus({ preventScroll: true });
+  }, [pathname, main]);
+  return null;
+}
+
 function App() {
+  const main = useRef<HTMLElement>(null);
   return (
     <div className="min-h-screen">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn btn-primary"
+        onClick={(e) => { e.preventDefault(); main.current?.focus(); }}>
+        Skip to content
+      </a>
+      <RouteEffects main={main} />
       <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-        <div className="max-w-[1400px] mx-auto px-4 h-14 flex items-center gap-4">
+        <div className="max-w-[1400px] mx-auto px-4 min-h-14 py-2 flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="font-semibold tracking-tight whitespace-nowrap">
-            <span style={{ color: "var(--accent)" }}>●</span> WhereAreMyTokens
+            <span aria-hidden style={{ color: "var(--accent)" }}>●</span> WhereAreMyTokens
           </span>
           <Nav />
           <div className="ml-auto flex items-center gap-3">
@@ -130,7 +161,7 @@ function App() {
           </div>
         </div>
       </header>
-      <main className="max-w-[1400px] mx-auto px-4 py-6">
+      <main id="main" ref={main} tabIndex={-1} className="max-w-[1400px] mx-auto px-4 py-6 outline-none">
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/activity" element={<Activity />} />
@@ -140,6 +171,7 @@ function App() {
           <Route path="/sessions" element={<Sessions />} />
           <Route path="/sessions/:id" element={<SessionDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
     </div>
@@ -148,14 +180,16 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthGate>
-          <SettingsGate>
-            <App />
-          </SettingsGate>
-        </AuthGate>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthGate>
+            <SettingsGate>
+              <App />
+            </SettingsGate>
+          </AuthGate>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

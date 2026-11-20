@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as echarts from "echarts/core";
 import { BarChart, HeatmapChart, LineChart } from "echarts/charts";
 import {
@@ -52,6 +52,7 @@ function readTheme(): Theme {
 /** Shared axis/tooltip styling so every chart reads as one system. */
 export function baseOption(t: Theme): EChartsCoreOption {
   return {
+    animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     animationDuration: 300,
     textStyle: { fontFamily: "Inter, system-ui, sans-serif", color: t.textSecondary },
     grid: { left: 8, right: 16, top: 36, bottom: 8, containLabel: true },
@@ -78,6 +79,44 @@ export function axisStyle(t: Theme) {
     axisTick: { show: false },
     axisLabel: { color: t.muted, fontSize: 11 },
     splitLine: { lineStyle: { color: t.grid } },
+  };
+}
+
+interface DataTable {
+  head: string[];
+  rows: (string | number)[][];
+}
+
+type Loose = Record<string, unknown>;
+const asArray = (v: unknown): Loose[] => (Array.isArray(v) ? (v as Loose[]) : v ? [v as Loose] : []);
+const categories = (axis: unknown): string[] | null => {
+  const a = asArray(axis).find((x) => x.type === "category" && Array.isArray(x.data));
+  return a ? (a.data as unknown[]).map(String) : null;
+};
+const round = (n: unknown) => (typeof n === "number" ? Math.round(n * 1e4) / 1e4 : String(n ?? ""));
+
+/** Charts are hover-only, so the same numbers are also offered as a table for screen readers. */
+export function optionToTable(option: EChartsCoreOption): DataTable | null {
+  const o = option as Loose;
+  const xs = categories(o.xAxis);
+  const ys = categories(o.yAxis);
+  const series = asArray(o.series);
+  if (series.length === 0) return null;
+  const heat = series.find((s) => s.type === "heatmap");
+  if (heat && xs && ys) {
+    const rows = (heat.data as unknown[]).map((d) => {
+      const [x, y, v] = d as number[];
+      return [ys[y], xs[x], round(v)];
+    });
+    return { head: ["Row", "Column", "Value"], rows };
+  }
+  const cats = ys ?? xs;
+  if (!cats) return null;
+  const value = (d: unknown) => (d && typeof d === "object" && !Array.isArray(d) ? (d as Loose).value : d);
+  const cols = series.map((s, i) => ({ name: String(s.name ?? `Series ${i + 1}`), data: (s.data as unknown[]) ?? [] }));
+  return {
+    head: ["", ...cols.map((c) => c.name)],
+    rows: cats.map((c, i) => [c, ...cols.map((col) => round(value(col.data[i])))]),
   };
 }
 
@@ -119,5 +158,24 @@ export function Chart({ build, height = 280, ariaLabel }: {
     if (theme && chart.current) chart.current.setOption(build(theme), true);
   }, [build, theme]);
 
-  return <div ref={ref} role="img" aria-label={ariaLabel} style={{ height, width: "100%" }} />;
+  const table = useMemo(() => (theme ? optionToTable(build(theme)) : null), [build, theme]);
+
+  return (
+    <>
+      <div ref={ref} role="img" aria-label={ariaLabel} style={{ height, width: "100%" }} />
+      {table && (
+        <table className="sr-only">
+          <caption>{ariaLabel}</caption>
+          <thead>
+            <tr>{table.head.map((h, i) => <th key={i} scope="col">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {table.rows.map((r, i) => (
+              <tr key={i}>{r.map((c, j) => (j === 0 ? <th key={j} scope="row">{c}</th> : <td key={j}>{c}</td>))}</tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
 }

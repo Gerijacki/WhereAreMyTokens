@@ -34,12 +34,12 @@ export function Stat({ label, value, hint }: { label: string; value: string; hin
 }
 
 export function Loading() {
-  return <div className="muted text-sm p-6">Loading…</div>;
+  return <div role="status" className="muted text-sm p-6">Loading…</div>;
 }
 
 export function ErrorBox({ error }: { error: unknown }) {
   return (
-    <div className="card p-4 text-sm" style={{ color: "var(--critical)" }}>
+    <div role="alert" className="card p-4 text-sm" style={{ color: "var(--critical)" }}>
       Failed to load: {error instanceof Error ? error.message : String(error)}
     </div>
   );
